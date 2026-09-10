@@ -18,6 +18,9 @@
     --out:#A8452F; --out-soft:#F8E7E2;
     --focus:#2F6FA8;
     --r:6px;
+    /* 기사 식별색 — 색약 판별·명도 기준을 통과한 8색. 이름과 항상 같이 표시합니다. */
+    --crew-0:#6A7180; --crew-1:#2a78d6; --crew-2:#eb6834; --crew-3:#1baf7a; --crew-4:#eda100;
+    --crew-5:#e87ba4; --crew-6:#008300; --crew-7:#4a3aa7; --crew-8:#e34948;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
@@ -28,6 +31,8 @@
       --in:#3EAE92; --in-soft:#172C28;
       --out:#E0765C; --out-soft:#2E1D1A;
       --focus:#6BA8DC;
+      --crew-0:#8A919E; --crew-1:#3987e5; --crew-2:#d95926; --crew-3:#199e70; --crew-4:#c98500;
+      --crew-5:#d55181; --crew-6:#008300; --crew-7:#9085e9; --crew-8:#e66767;
     }
   }
   :root[data-theme="dark"]{
@@ -38,6 +43,8 @@
     --in:#3EAE92; --in-soft:#172C28;
     --out:#E0765C; --out-soft:#2E1D1A;
     --focus:#6BA8DC;
+    --crew-0:#8A919E; --crew-1:#3987e5; --crew-2:#d95926; --crew-3:#199e70; --crew-4:#c98500;
+    --crew-5:#d55181; --crew-6:#008300; --crew-7:#9085e9; --crew-8:#e66767;
   }
 
   *{box-sizing:border-box}
@@ -140,7 +147,8 @@
   td input::placeholder{color:var(--muted); opacity:.6}
   td input:focus-visible, button:focus-visible, .chk:focus-within, .chip:focus-visible, a:focus-visible{outline:2px solid var(--focus); outline-offset:-2px}
   td.n input{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; text-align:right}
-  td.drv input{font-weight:500}
+  td.drv{display:flex; align-items:center; gap:6px; padding-left:9px}
+  td.drv input{font-weight:500; padding-left:2px}
   td.calc{padding:9px 10px; text-align:right; white-space:nowrap; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; color:var(--ink-2)}
   td.calc.dim{color:var(--muted)}
   td.act{width:34px; text-align:center}
@@ -210,10 +218,19 @@
   .cid{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-2)}
 
   /* ---------- 기사별 보유 현황 카드 ---------- */
-  .crewgrid{display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr))}
+  .crewgrid{display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); align-items:start}
   .crewcard{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; min-width:0}
-  .crewhead{display:flex; align-items:center; gap:8px; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--line)}
+  .crewhead{
+    display:flex; align-items:center; gap:8px; padding:10px 12px;
+    background:color-mix(in srgb, var(--crew, transparent) 13%, var(--surface-2));
+    border-bottom:1px solid var(--line);
+  }
   .crewhead .nm{font-weight:600; font-size:13.5px; letter-spacing:-.01em}
+  .cdot{
+    width:9px; height:9px; border-radius:50%; flex:none;
+    background:var(--crew, var(--crew-0)); box-shadow:0 0 0 1px rgba(0,0,0,.06) inset;
+  }
+  .cdot.sm{width:7px; height:7px}
   .crewhead .cnt{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); white-space:nowrap}
   .badge{font-family:"IBM Plex Mono",monospace; font-size:10px; padding:2px 6px; border-radius:3px; white-space:nowrap}
   .badge.warn{background:var(--out-soft); color:var(--out)}
@@ -240,10 +257,37 @@
   .mitem .pill{font-size:10.5px; padding:2px 7px; margin-left:auto; flex:none}
   .mitem .rowdel{font-size:13px; padding:3px 5px; flex:none; line-height:1}
   .emptycard{grid-column:1/-1; background:var(--surface); border:1px dashed var(--line); border-radius:var(--r); padding:28px; text-align:center; color:var(--muted); font-size:13px}
+  .crewcard.empty{border-style:dashed}
+  .crewcard.empty .crewhead{background:none}
+  .crewcard.empty .crewhead .nm{color:var(--muted); font-weight:500}
+  .nostock{padding:18px 12px; text-align:center; color:var(--muted); font-size:12.5px}
+
+  /* ---------- 끌어서 옮기기 ---------- */
+  .grip{
+    flex:none; cursor:grab; color:var(--muted); opacity:.3; font-size:13px; line-height:1;
+    padding:3px 2px; user-select:none; -webkit-user-select:none; letter-spacing:-1px;
+  }
+  .mitem:hover .grip{opacity:.85}
+  .grip:active{cursor:grabbing}
+  .mitem.dragging{opacity:.35}
+  .crewcard.dropok{border-color:var(--brass); box-shadow:0 0 0 2px var(--brass-soft)}
+  .crewcard.dropok .crewhead{background:var(--brass-soft)}
+  .crewcard.dropok .crewhead .nm{color:var(--brass)}
+  .crewcard.dropok .nostock{color:var(--brass)}
+  body.dragging-stock .crewcard{transition:border-color .12s}
+  body.dragging-stock .mitem input{pointer-events:none}
+  @media (hover:none){ .grip{opacity:.7} }
 
   /* ---------- 멤버 ---------- */
   .mlist{display:grid; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--r); overflow:hidden}
-  .mrow{display:grid; grid-template-columns:30px 130px 1fr 92px 40px; align-items:center; background:var(--surface)}
+  .mrow{display:grid; grid-template-columns:30px 116px 1fr 108px 88px 40px; align-items:center; background:var(--surface)}
+  .mrow .col{display:flex; align-items:center; gap:6px; padding:8px 12px; min-width:0}
+  .mrow .col select{
+    appearance:none; border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+    font:inherit; font-size:12px; padding:3px 6px; border-radius:4px; cursor:pointer; min-width:0; flex:1;
+  }
+  .mrow .col select:disabled{opacity:.55; cursor:not-allowed}
+  .mrow.head .col{padding:8px 12px}
   .mrow.head > div{padding:8px 12px; font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:500; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); background:var(--surface-2)}
   .mrow .i{padding:11px 12px; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); text-align:center}
   .mrow input{width:100%; border:0; background:none; color:var(--ink); font:inherit; padding:11px 12px; min-width:0}
@@ -280,7 +324,7 @@
     .prow .settle{padding-inline:8px}
     .prow .st{padding-inline:8px 12px}
     .chk span.t{display:none}
-    .mrow{grid-template-columns:30px 1fr 40px}
+    .mrow{grid-template-columns:30px 1fr 104px 40px}
     .mrow .em, .mrow .st{display:none}
   }
 </style>
@@ -448,7 +492,7 @@
 
   <div class="shead">
     <h2>기사별 보유 현황</h2>
-    <span class="note">칸을 눌러 바로 고칠 수 있습니다 · <b>기사</b> 칸을 바꾸면 그 기사 카드로 옮겨갑니다</span>
+    <span class="note"><b>⠿</b> 를 끌어 다른 기사 카드에 놓으면 넘어갑니다 · 모집자는 그대로 유지됩니다</span>
   </div>
   <div class="crewgrid" id="stockGrid"></div>
   <div class="btnbar">
@@ -812,7 +856,7 @@ function drawSeats(round){
     tr.dataset.k = k;
     tr.innerHTML = `
       <td class="seat">${i + 1}</td>
-      <td class="drv"><input data-f="drv" list="crew" value="${esc(r.drv)}" placeholder="빈 자리" aria-label="${i+1}번 운전자" maxlength="12"></td>
+      <td class="drv"><span class="cdot sm"></span><input data-f="drv" list="crew" value="${esc(r.drv)}" placeholder="빈 자리" aria-label="${i+1}번 운전자" maxlength="12"></td>
       <td><input data-f="rec" list="crew" value="${esc(r.rec)}" placeholder="—" aria-label="${i+1}번 모집자" maxlength="12"></td>
       <td><input data-f="job" list="jobs" value="${esc(r.job)}" placeholder="—" aria-label="${i+1}번 직업" maxlength="8"></td>
       <td><input data-f="nick" value="${esc(r.nick)}" placeholder="닉네임[서버]" aria-label="${i+1}번 닉네임" maxlength="40"></td>
@@ -886,6 +930,8 @@ function refreshCalcCells(round, res){
     c[1].textContent = filled ? won(net(r) / 10) : "—"; c[1].classList.toggle("dim", !filled);
     tr.classList.toggle("empty", !filled);
     tr.querySelector('[data-f="drv"]').classList.toggle("dupe", res.dupes.has((r.drv || "").trim()));
+    const dot = tr.querySelector(".cdot");
+    if (dot) dot.style.background = (r.drv || "").trim() ? crewColor(r.drv) : "transparent";
   });
 }
 
@@ -913,7 +959,7 @@ function drawPayouts(host, lines, paidMap, onToggle){
     el.className = "prow " + dir;
     el.innerHTML = `
       <div class="stripe"></div>
-      <div class="nm">${esc(l.name)}${l.isDriver ? "" : ' <span class="role">모집만</span>'}</div>
+      <div class="nm"><span class="cdot sm" style="background:${crewColor(l.name)}"></span>${esc(l.name)}${l.isDriver ? "" : ' <span class="role">모집만</span>'}</div>
       <div class="v hide-sm${l.total ? "" : " zero"}">${l.total ? won(l.total) : "—"}</div>
       <div class="v hide-sm${l.share ? "" : " zero"}">${l.share ? won(l.share) : "—"}</div>
       <div class="v hide-sm${l.recBonus ? "" : " zero"}">${l.recBonus ? won(l.recBonus) : "—"}</div>
@@ -1050,10 +1096,43 @@ function saveStock(item){
 }
 
 const UNASSIGNED = "미배정";
+let dragId = null;
+
+/* 기사 식별색 — 멤버 탭에서 고른 색이 있으면 그걸 쓰고,
+   없으면 명단 순서대로 8색을 자동 배정한다. 9번째부터는 중립 회색.
+   색은 언제나 이름과 함께 나오므로 색만으로 사람을 구분하게 두지 않는다. */
+const CREW_COLOR_NAMES = ["회색","파랑","주황","아쿠아","노랑","마젠타","초록","보라","빨강"];
+
+const hasColor = m => m && m.color !== undefined && m.color !== null && m.color !== "";
+
+function crewIndex(name){
+  const n = (name || "").trim();
+  if (!n || n === UNASSIGNED) return 0;
+  const i = state.members.findIndex(m => (m.name || "").trim() === n);
+  if (i < 0) return 0;
+  if (hasColor(state.members[i])) return Math.max(0, Math.min(8, Number(state.members[i].color) || 0));
+
+  // 자동 배정 — 누가 직접 고른 색은 빼고 남은 색을 명단 순서대로 나눠준다
+  const taken = new Set(state.members.filter(hasColor).map(m => Number(m.color)).filter(c => c >= 1 && c <= 8));
+  const pool = [1,2,3,4,5,6,7,8].filter(c => !taken.has(c));
+  let k = 0;
+  for (let j = 0; j < state.members.length; j++){
+    if (hasColor(state.members[j])) continue;
+    if (j === i) return pool[k] === undefined ? 0 : pool[k];
+    k++;
+  }
+  return 0;
+}
+const crewColor = name => `var(--crew-${crewIndex(name)})`;
 
 /* 운전자별로 묶는다. 순서는 팀원 명단 순서를 따르고, 명단에 없는 이름은 뒤로, 미배정은 맨 끝. */
 function stockGroups(){
   const map = new Map();
+  // 팀원 명단에 있는 기사는 매물이 0건이어도 카드를 하나씩 만든다
+  state.members.forEach(m => {
+    const n = (m.name || "").trim();
+    if (n && !map.has(n)) map.set(n, []);
+  });
   state.stock.forEach(s => {
     const k = (s.drv || "").trim() || UNASSIGNED;
     if (!map.has(k)) map.set(k, []);
@@ -1076,8 +1155,10 @@ function stockItem(s){
   const dev = devOk(s.dev);
   const el = document.createElement("div");
   el.className = "mitem";
+  el.dataset.id = s.id;
   el.innerHTML = `
     <div class="mline">
+      <span class="grip" title="끌어서 다른 기사에게 넘기기" aria-hidden="true">⠿</span>
       <input data-f="job" list="jobs" class="f-job" value="${esc(s.job)}" placeholder="클래스" aria-label="클래스" maxlength="8">
       <input data-f="spec" class="f-spec" value="${esc(s.spec)}" placeholder="스펙" aria-label="스펙" maxlength="16">
       <button type="button" class="pill ${dev ? "ok" : "no"}" title="누르면 기기등록 상태가 바뀝니다">${dev ? "등록됨" : "미등록"}</button>
@@ -1101,6 +1182,23 @@ function stockItem(s){
   // 기사 이름을 다 치고 칸을 벗어나면 그 기사 카드로 옮겨간다
   el.querySelector('[data-f="drv"]').addEventListener("change", () => drawStock());
 
+  // 손잡이(⠿)를 잡았을 때만 끌 수 있게 한다 — 그래야 칸 안 글자 선택이 안 막힌다
+  const grip = el.querySelector(".grip");
+  const arm  = () => { el.draggable = true; };
+  const disarm = () => { el.draggable = false; };
+  grip.addEventListener("mousedown", arm);
+  grip.addEventListener("touchstart", arm, { passive: true });
+  el.addEventListener("mouseup", disarm);
+
+  el.addEventListener("dragstart", e => {
+    dragId = s.id;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", s.id);
+    el.classList.add("dragging");
+    document.body.classList.add("dragging-stock");
+  });
+  el.addEventListener("dragend", () => { endDrag(); disarm(); });
+
   el.querySelector(".pill").addEventListener("click", () => {
     s.dev = dev ? "" : "ㅇ"; saveStock(s); drawStock();
   });
@@ -1113,21 +1211,65 @@ function stockItem(s){
   return el;
 }
 
+/* 끌어서 옮기기 — 모집자는 그대로 두고 기사(운전자)만 바꾼다 */
+function endDrag(){
+  dragId = null;
+  document.body.classList.remove("dragging-stock");
+  document.querySelectorAll(".mitem.dragging").forEach(n => n.classList.remove("dragging"));
+  document.querySelectorAll(".crewcard.dropok").forEach(n => n.classList.remove("dropok"));
+}
+
+function moveStock(id, drv){
+  const s = state.stock.find(x => x.id === id);
+  if (!s) return;
+  const to = (drv || "").trim();
+  if ((s.drv || "").trim() === to) return;
+  const from = (s.drv || "").trim() || UNASSIGNED;
+  s.drv = to;                    // 모집자(rec)는 손대지 않는다
+  saveStock(s);
+  drawStock();
+  toast(`${s.job || s.memo || s.cid || "매물"} · ${from} → ${to || UNASSIGNED}`);
+}
+
 function crewCard(name, items){
   const nodev = items.filter(s => !devOk(s.dev)).length;
   const card = document.createElement("div");
   card.className = "crewcard";
 
+  if (!items.length) card.classList.add("empty");
+
+  card.addEventListener("dragover", e => {
+    if (!dragId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    card.classList.add("dropok");
+  });
+  card.addEventListener("dragleave", e => {
+    if (!card.contains(e.relatedTarget)) card.classList.remove("dropok");
+  });
+  card.addEventListener("drop", e => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/plain") || dragId;
+    endDrag();
+    moveStock(id, name === UNASSIGNED ? "" : name);
+  });
+
+  card.style.setProperty("--crew", crewColor(name));
+
   const head = document.createElement("div");
   head.className = "crewhead";
-  head.innerHTML = `<span class="nm">${esc(name)}</span>
+  head.innerHTML = `<span class="cdot"></span><span class="nm">${esc(name)}</span>
     ${nodev ? `<span class="badge warn">미등록 ${nodev}</span>` : ""}
     <span class="cnt">${items.length}건</span>`;
   card.appendChild(head);
 
   const list = document.createElement("div");
   list.className = "crewlist";
-  items.forEach(s => list.appendChild(stockItem(s)));
+  if (!items.length) {
+    list.innerHTML = `<div class="nostock">보유 매물 없음</div>`;
+  } else {
+    items.forEach(s => list.appendChild(stockItem(s)));
+  }
   card.appendChild(list);
 
   const add = document.createElement("button");
@@ -1156,7 +1298,8 @@ function drawStock(){
       const b = document.createElement("button");
       b.type = "button"; b.className = "chip";
       b.setAttribute("aria-pressed", state.stockFilter === key ? "true" : "false");
-      b.innerHTML = `${esc(label)} <span class="c">${n}</span>`;
+      b.innerHTML = (key === "all" ? "" : `<span class="cdot sm" style="background:${crewColor(key)}"></span>`)
+        + `${esc(label)} <span class="c">${n}</span>`;
       b.onclick = () => { state.stockFilter = key; drawStock(); };
       f.appendChild(b);
     });
@@ -1219,25 +1362,43 @@ function drawMembers(){
   host.innerHTML = "";
   const head = document.createElement("div");
   head.className = "mrow head";
-  head.innerHTML = `<div>#</div><div>이름</div><div class="em">구글 계정</div><div class="st">상태</div><div></div>`;
+  head.innerHTML = `<div>#</div><div>이름</div><div class="em">구글 계정</div><div class="col">색</div><div class="st">상태</div><div></div>`;
   host.appendChild(head);
 
   state.members.forEach((m, i) => {
     const el = document.createElement("div");
     el.className = "mrow";
     const on = !!m.email;
+    const cur = (m.color === undefined || m.color === null || m.color === "") ? "" : String(m.color);
+    const opts = ['<option value="">자동</option>']
+      .concat([1,2,3,4,5,6,7,8,0].map(n =>
+        `<option value="${n}"${cur === String(n) ? " selected" : ""}>${CREW_COLOR_NAMES[n]}</option>`))
+      .join("");
     el.innerHTML = `
       <div class="i">${i + 1}</div>
       <input value="${esc(m.name)}" data-f="name" placeholder="이름" aria-label="${i+1}번 이름" maxlength="12" ${owner ? "" : "readonly"}>
       <input value="${esc(m.email)}" data-f="email" class="em" type="email" inputmode="email" placeholder="아직 없음" aria-label="${i+1}번 구글 계정" maxlength="60" ${owner ? "" : "readonly"}>
+      <div class="col">
+        <span class="cdot sm" data-role="swatch"></span>
+        <select data-f="color" aria-label="${i+1}번 식별색" ${owner ? "" : "disabled"}>${opts}</select>
+      </div>
       <div class="st"><span class="pill ${on ? "ok" : "no"}" style="cursor:default">${on ? "로그인 가능" : "대기"}</span></div>
       <div class="ac">${owner ? `<button type="button" class="rowdel" title="삭제" aria-label="${i+1}번 삭제">×</button>` : ""}</div>`;
+
+    el.querySelector('[data-role="swatch"]').style.background = crewColor(m.name);
+
     el.querySelectorAll("[data-f]").forEach(inp => {
-      inp.addEventListener("input", () => {
-        m[inp.dataset.f] = inp.value.trim();
+      const ev = inp.tagName === "SELECT" ? "change" : "input";
+      inp.addEventListener(ev, () => {
+        if (inp.dataset.f === "color") {
+          m.color = inp.value === "" ? null : Number(inp.value);
+        } else {
+          m[inp.dataset.f] = inp.value.trim();
+        }
         state.membersDirty = true;
         $("memberDirty").textContent = "저장 안 된 변경사항이 있습니다";
         if (inp.dataset.f === "name") refreshCrewList();
+        if (inp.dataset.f === "color" || inp.dataset.f === "name") drawMembers();
       });
     });
     const del = el.querySelector(".rowdel");
@@ -1266,7 +1427,11 @@ $("memberAdd").onclick = () => { state.members.push({ name:"", email:"" }); stat
 $("memberSave").onclick = async () => {
   const list = state.members
     .filter(m => (m.name || "").trim() || (m.email || "").trim())
-    .map(m => ({ name: (m.name || "").trim(), email: (m.email || "").trim().toLowerCase() }));
+    .map(m => {
+      const row = { name: (m.name || "").trim(), email: (m.email || "").trim().toLowerCase() };
+      if (m.color !== undefined && m.color !== null && m.color !== "") row.color = Number(m.color);
+      return row;
+    });
 
   const bad = list.find(m => m.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email));
   if (bad) { toast(`이메일 형식이 이상합니다: ${bad.email}`); return; }
@@ -1278,13 +1443,18 @@ $("memberSave").onclick = async () => {
   const dupName = names.find((n, i, a) => a.indexOf(n) !== i);
   if (dupName) { toast(`이름이 겹칩니다: ${dupName} — 정산이 한 사람으로 합쳐집니다.`); return; }
 
+  const picked = list.filter(m => hasColor(m) && Number(m.color) >= 1).map(m => Number(m.color));
+  const dupColor = picked.find((c, i, a) => a.indexOf(c) !== i);
+
   state.members = list;
   state.membersDirty = false;
   $("memberDirty").textContent = "";
   if (DEMO){ drawMembers(); toast("데모 모드라 브라우저 안에서만 저장됩니다."); return; }
   try {
     await fb.fs.setDoc(fb.fs.doc(fb.db, "config", "members"), { list, emails });
-    toast("팀원 명단을 저장했습니다.");
+    toast(dupColor
+      ? `저장했습니다. 다만 ${CREW_COLOR_NAMES[dupColor]}을(를) 두 명이 쓰고 있습니다.`
+      : "팀원 명단을 저장했습니다.");
   } catch (e) { toast("저장 실패: " + (e.code || e.message)); }
   drawMembers();
 };
