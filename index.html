@@ -227,6 +227,7 @@
   }
   .crewhead .nm{font-weight:600; font-size:13.5px; letter-spacing:-.01em}
   .cdot{
+    display:inline-block; vertical-align:middle;
     width:9px; height:9px; border-radius:50%; flex:none;
     background:var(--crew, var(--crew-0)); box-shadow:0 0 0 1px rgba(0,0,0,.06) inset;
   }
@@ -242,8 +243,13 @@
   .mitem input::placeholder{color:var(--muted); opacity:.55}
   .mitem input:hover{background:var(--surface-2)}
   .mitem input:focus{background:var(--surface-2); outline:1px solid var(--focus); outline-offset:-1px}
-  .f-job{width:58px; font-weight:500; flex:none}
-  .f-spec{width:74px; flex:none; text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  .f-job{flex:0 0 52px; font-weight:500; min-width:0}
+  .f-spec{flex:1 1 62px; min-width:0; text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  .f-price{
+    flex:1 1 74px; min-width:0; text-align:right; font-weight:500; color:var(--brass);
+    font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
+  }
+  .f-price::placeholder{color:var(--muted); opacity:.5; font-weight:400}
   .f-cid{flex:1 1 40%; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-2)}
   .f-memo{flex:1 1 60%; font-size:12px; color:var(--muted)}
   .mline.meta{gap:4px; padding-top:1px}
@@ -256,6 +262,34 @@
   .mitem .f-drv{color:var(--brass); font-weight:500}
   .mitem .pill{font-size:10.5px; padding:2px 7px; margin-left:auto; flex:none}
   .mitem .rowdel{font-size:13px; padding:3px 5px; flex:none; line-height:1}
+  /* ---------- 역할별 3분할 ---------- */
+  .rolegrid{display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); align-items:start}
+  .rolecard{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; min-width:0}
+  .rolecard.empty{border-style:dashed}
+  .rolehead{display:flex; align-items:baseline; gap:8px; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--line)}
+  .rolehead .nm{font-weight:600; font-size:13.5px; letter-spacing:-.01em}
+  .rolehead .jobs{font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .rolehead .cnt{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); white-space:nowrap}
+  .rolecard.empty .rolehead{background:none}
+  .rolecard.empty .rolehead .nm{color:var(--muted)}
+  .rolelist{max-height:560px; overflow-y:auto; scrollbar-width:thin}
+  .ritem{padding:8px 12px; border-bottom:1px solid var(--line-2); display:grid; gap:2px}
+  .ritem:last-child{border-bottom:0}
+  .rline{display:flex; align-items:center; gap:7px; min-width:0}
+  .rline.sub{gap:6px}
+  .rno{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); width:16px; flex:none}
+  .rjob{font-weight:500; font-size:13px; flex:0 0 50px}
+  .rspec{
+    margin-left:auto; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
+    font-weight:600; font-size:13px; flex:none;
+  }
+  .rprice{
+    font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
+    font-weight:600; font-size:13px; color:var(--brass); flex:none; min-width:56px; text-align:right;
+  }
+  .rdrv{font-size:11.5px; color:var(--ink-2); flex:none}
+  .rmemo{font-size:11.5px; color:var(--muted); flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .rline.sub .pill{font-size:10px; padding:1px 6px; flex:none}
   .emptycard{grid-column:1/-1; background:var(--surface); border:1px dashed var(--line); border-radius:var(--r); padding:28px; text-align:center; color:var(--muted); font-size:13px}
   .crewcard.empty{border-style:dashed}
   .crewcard.empty .crewhead{background:none}
@@ -497,9 +531,15 @@
   <div class="crewgrid" id="stockGrid"></div>
   <div class="btnbar">
     <button type="button" class="btn" id="stockAdd">+ 매물 추가</button>
-    <button type="button" class="btn" id="stockSeed">구글시트 매물 28건 가져오기</button>
+    <button type="button" class="btn danger" id="stockClear">매물 전체 삭제</button>
   </div>
   <div class="hint">고객 실명·연락처가 들어 있는 화면입니다. 로그인한 팀원에게만 보입니다.</div>
+
+  <div class="shead" style="margin-top:36px">
+    <h2>역할별 투력 리스트</h2>
+    <span class="note">투력 높은 순 · 위 카드에서 고치면 여기도 바로 바뀝니다</span>
+  </div>
+  <div class="rolegrid" id="roleGrid"></div>
 </section>
 
 <!-- ---------- 멤버 ---------- -->
@@ -575,7 +615,6 @@ const DEFAULT_MEMBERS = [
   { name: "함파", email: "" }
 ];
 
-const STOCK_SEED = [{"cid": "G- 강진석", "rec": "기궁", "drv": "기궁", "job": "살성", "spec": "900.0", "dev": "ㅇ", "memo": "이체 1.5 분열[트리]"}, {"cid": "G- 임수빈(토마토", "rec": "기궁", "drv": "기궁", "job": "궁성", "spec": "900.0", "dev": "ㅇ", "memo": "이체 1.5 나뭇잎[카이시넬]"}, {"cid": "G - JB lee", "rec": "기궁", "drv": "기궁", "job": "치유", "spec": "600.0", "dev": "ㅇ", "memo": "이체 1.5 겸손[트리니엘]"}, {"cid": "82 10-7***", "rec": "낭만", "drv": "기궁", "job": "마도", "spec": "850.0", "dev": "ㅇ", "memo": "이체 1.5 앙징[아스펠]"}, {"cid": "G- 장성민", "rec": "낭만", "drv": "기궁", "job": "궁성", "spec": "900.0", "dev": "ㅇ", "memo": "이체 1.5 색씨[바이젤]  퉼[호법]3"}, {"cid": "G- 장민호", "rec": "낭만", "drv": "기궁", "job": "호법", "spec": "680.0", "dev": "ㅇ", "memo": "이체 2.0 씽[하타니에]"}, {"cid": "N- TE***51", "rec": "낭만", "drv": "기궁", "job": "정령", "spec": "800.0", "dev": "ㅇ", "memo": "알리옐[아리엘]  1.5"}, {"cid": "G- 김민철", "rec": "얌이", "drv": "기궁", "job": "궁성", "spec": "800.0", "dev": "ㅇ", "memo": "이소민[루드라] 1.5"}, {"cid": "N- YMJ***28", "rec": "얌이", "drv": "기궁", "job": "살성", "spec": "650.0", "dev": "ㅇ", "memo": "현이마눌[포에타] 3"}, {"cid": "L-이다빈", "rec": "낭만", "drv": "기궁", "job": "호법", "spec": "450.0", "dev": "ㅇ", "memo": "루닌[마르쿠탄]"}, {"cid": "G-이다빈", "rec": "낭만", "drv": "기궁", "job": "호법", "spec": "470.0", "dev": "ㅇ", "memo": "미셀[마르쿠탄]"}, {"cid": "G-지켈마피", "rec": "낭만", "drv": "기궁", "job": "살성", "spec": "600.0", "dev": "ㅇ", "memo": "빽검성/빽살성 [ 나니아]  2"}, {"cid": "N- zovi", "rec": "낭만", "drv": "기궁", "job": "치유", "spec": "600.0", "dev": "ㅇ", "memo": "휳러[아리엘]"}, {"cid": "G- 이종선", "rec": "낭만", "drv": "기궁", "job": "치유", "spec": "770.0", "dev": "ㅇ", "memo": "급조한치유성[아리엘]"}, {"cid": "G- 이스장막", "rec": "낭만", "drv": "기궁", "job": "치유", "spec": "920 / 500", "dev": "ㅇ", "memo": "물뽕1.5/도산대로2.0 [바이젤]"}, {"cid": "", "rec": "동굳", "drv": "동굳", "job": "궁성", "spec": "720.0", "dev": "x", "memo": ""}, {"cid": "", "rec": "동굳", "drv": "동굳", "job": "궁성", "spec": "770.0", "dev": "o", "memo": "무캉[이스라펠] / dudqjfl"}, {"cid": "", "rec": "동굳", "drv": "동굳", "job": "마도", "spec": "720.0", "dev": "o", "memo": "폭군미미[이스라펠] / 이승봉"}, {"cid": "", "rec": "동굳", "drv": "동굳", "job": "궁성", "spec": "690.0", "dev": "ㅇ", "memo": "독도새우깡[바이젤] / 신재훈"}, {"cid": "", "rec": "소부", "drv": "동굳", "job": "궁성", "spec": "720.0", "dev": "o", "memo": "부탄[지켈] / 9766"}, {"cid": "", "rec": "얌이", "drv": "동굳", "job": "궁성", "spec": "647.0", "dev": "o", "memo": "배형덕"}, {"cid": "", "rec": "낭만", "drv": "동굳", "job": "마도", "spec": "630.0", "dev": "o", "memo": "마있다[카사카] / 이희연"}, {"cid": "", "rec": "낭만", "drv": "동굳", "job": "마도", "spec": "714.0", "dev": "", "memo": "탄맛/네몬"}, {"cid": "", "rec": "낭만", "drv": "에딘", "job": "살성", "spec": "685.0", "dev": "o", "memo": ""}, {"cid": "", "rec": "기궁", "drv": "에딘", "job": "검성", "spec": "650.0", "dev": "o", "memo": ""}, {"cid": "", "rec": "동굳", "drv": "에딘", "job": "살성", "spec": "700.0", "dev": "o", "memo": ""}, {"cid": "", "rec": "동굳", "drv": "에딘", "job": "검성", "spec": "676.0", "dev": "o", "memo": ""}, {"cid": "", "rec": "낭만", "drv": "에딘", "job": "궁성", "spec": "700.0", "dev": "o", "memo": ""}];
 
 /* =========================================================================
    2. Firebase
@@ -1084,6 +1123,72 @@ function saveDay(name, on){
 function devOk(v){ return /^[ㅇo0]$/i.test((v || "").trim()); }
 function specNum(v){ const m = String(v || "").match(/\d+/); return m ? Number(m[0]) : null; }
 
+/* 역할 분류 — 탱커: 수호·검성 / 서포터: 호법·치유 / 나머지는 전부 딜러 */
+const ROLES = [
+  { key:"tank",    label:"탱커",   jobs:["수호","검성"] },
+  { key:"support", label:"서포터", jobs:["호법","치유"] },
+  { key:"dealer",  label:"딜러",   jobs:null }
+];
+function roleOf(job){
+  const j = (job || "").trim();
+  if (ROLES[0].jobs.includes(j)) return "tank";
+  if (ROLES[1].jobs.includes(j)) return "support";
+  return "dealer";
+}
+/* 클래스도 스펙도 없는 빈 줄은 리스트에서 뺀다 */
+const listable = s => !!((s.job || "").trim() || (s.spec || "").trim() || (s.price || "").trim());
+
+function drawRoles(){
+  const items = state.stock.filter(listable);
+  const grid = $("roleGrid");
+  grid.innerHTML = "";
+
+  ROLES.forEach(role => {
+    const rows = items
+      .filter(s => roleOf(s.job) === role.key)
+      .sort((a, b) => (specNum(b.spec) ?? -1) - (specNum(a.spec) ?? -1));
+
+    const col = document.createElement("div");
+    col.className = "rolecard" + (rows.length ? "" : " empty");
+
+    const jobs = role.jobs ? role.jobs.join(" · ") : "그 밖의 클래스";
+    const head = document.createElement("div");
+    head.className = "rolehead";
+    head.innerHTML = `<span class="nm">${role.label}</span>
+      <span class="jobs">${esc(jobs)}</span>
+      <span class="cnt">${rows.length}건</span>`;
+    col.appendChild(head);
+
+    const list = document.createElement("div");
+    list.className = "rolelist";
+    if (!rows.length){
+      list.innerHTML = `<div class="nostock">해당 매물 없음</div>`;
+    } else {
+      rows.forEach((s, i) => {
+        const dev = devOk(s.dev), drv = (s.drv || "").trim();
+        const el = document.createElement("div");
+        el.className = "ritem";
+        el.innerHTML = `
+          <div class="rline">
+            <span class="rno">${i + 1}</span>
+            <span class="rjob">${esc(s.job) || "—"}</span>
+            <span class="rspec">${esc(s.spec) || "—"}</span>
+            <span class="rprice">${esc(s.price) || "—"}</span>
+          </div>
+          <div class="rline sub">
+            <span class="cdot sm" style="background:${drv ? crewColor(drv) : "transparent"}"></span>
+            <span class="rdrv">${esc(drv) || "미배정"}</span>
+            <span class="rmemo">${esc(s.memo) || esc(s.cid) || ""}</span>
+            <span class="pill ${dev ? "ok" : "no"}" style="cursor:default">${dev ? "등록됨" : "미등록"}</span>
+          </div>`;
+        list.appendChild(el);
+      });
+    }
+    col.appendChild(list);
+    grid.appendChild(col);
+  });
+}
+
 const stockTimers = new Map();
 function saveStock(item){
   if (DEMO) return;
@@ -1161,6 +1266,7 @@ function stockItem(s){
       <span class="grip" title="끌어서 다른 기사에게 넘기기" aria-hidden="true">⠿</span>
       <input data-f="job" list="jobs" class="f-job" value="${esc(s.job)}" placeholder="클래스" aria-label="클래스" maxlength="8">
       <input data-f="spec" class="f-spec" value="${esc(s.spec)}" placeholder="스펙" aria-label="스펙" maxlength="16">
+      <input data-f="price" class="f-price" value="${esc(s.price)}" placeholder="금액" aria-label="금액" maxlength="16">
       <button type="button" class="pill ${dev ? "ok" : "no"}" title="누르면 기기등록 상태가 바뀝니다">${dev ? "등록됨" : "미등록"}</button>
       <button type="button" class="rowdel" title="매물 삭제" aria-label="매물 삭제">×</button>
     </div>
@@ -1176,7 +1282,12 @@ function stockItem(s){
     </div>`;
 
   el.querySelectorAll("[data-f]").forEach(inp => {
-    inp.addEventListener("input", () => { s[inp.dataset.f] = inp.value; saveStock(s); drawStockStats(); });
+    inp.addEventListener("input", () => {
+      s[inp.dataset.f] = inp.value;
+      saveStock(s);
+      drawStockStats();
+      drawRoles();          // 아래 역할별 리스트도 같이 따라간다
+    });
   });
 
   // 기사 이름을 다 치고 칸을 벗어나면 그 기사 카드로 옮겨간다
@@ -1281,7 +1392,7 @@ function crewCard(name, items){
 }
 
 async function addStock(drv){
-  const base = { cid:"", rec:"", drv: drv || "", job:"", spec:"", dev:"", memo:"" };
+  const base = { cid:"", rec:"", drv: drv || "", job:"", spec:"", price:"", dev:"", memo:"" };
   if (DEMO) { state.stock.push({ id:"demo"+Date.now(), ...base }); drawStock(); return; }
   try { await fb.fs.addDoc(fb.fs.collection(fb.db, "stock"), base); }
   catch (e) { toast("추가 실패: " + (e.code || e.message)); }
@@ -1313,6 +1424,10 @@ function drawStock(){
     shown.forEach(([name, items]) => grid.appendChild(crewCard(name, items)));
   }
   drawStockStats();
+  drawRoles();
+  const clr = $("stockClear");
+  clr.disabled = !isOwner() || !state.stock.length;
+  clr.title = isOwner() ? "" : "관리자만 쓸 수 있습니다";
 }
 
 function drawStockStats(){
@@ -1333,21 +1448,29 @@ $("stockAdd").onclick = () => addStock(
   (state.stockFilter === "all" || state.stockFilter === UNASSIGNED) ? "" : state.stockFilter
 );
 
-$("stockSeed").onclick = async () => {
-  if (state.stock.length && !confirm(`이미 매물 ${state.stock.length}건이 있습니다. ${STOCK_SEED.length}건을 더 추가할까요?`)) return;
-  const btn = $("stockSeed"); btn.disabled = true; btn.textContent = "가져오는 중…";
+$("stockClear").onclick = async () => {
+  const n = state.stock.length;
+  if (!n) { toast("삭제할 매물이 없습니다."); return; }
+  if (!isOwner()) { toast("관리자만 전체 삭제할 수 있습니다."); return; }
+  if (!confirm(`매물 ${n}건을 모두 지웁니다.\n되돌릴 수 없습니다. 계속할까요?`)) return;
+
+  const btn = $("stockClear"); btn.disabled = true; btn.textContent = "지우는 중…";
   try {
     if (DEMO) {
-      STOCK_SEED.forEach((s, i) => state.stock.push({ id:"demo"+Date.now()+"_"+i, ...s }));
+      state.stock = [];
     } else {
-      // 한 번에 커밋 — 중간에 끊겨도 절반만 들어가는 일이 없다
-      const batch = fb.fs.writeBatch(fb.db);
-      STOCK_SEED.forEach(s => batch.set(fb.fs.doc(fb.fs.collection(fb.db, "stock")), s));
-      await batch.commit();
+      // 500건씩 나눠 한 번에 커밋 — 중간에 끊겨도 절반만 지워지는 일이 없다
+      const ids = state.stock.map(s => s.id);
+      for (let i = 0; i < ids.length; i += 400) {
+        const batch = fb.fs.writeBatch(fb.db);
+        ids.slice(i, i + 400).forEach(id => batch.delete(fb.fs.doc(fb.db, "stock", id)));
+        await batch.commit();
+      }
+      state.stock = [];
     }
-    toast(`매물 ${STOCK_SEED.length}건을 가져왔습니다.`);
-  } catch (e) { toast("가져오기 실패: " + (e.code || e.message)); }
-  btn.disabled = false; btn.textContent = `구글시트 매물 ${STOCK_SEED.length}건 가져오기`;
+    toast(`매물 ${n}건을 지웠습니다.`);
+  } catch (e) { toast("삭제 실패: " + (e.code || e.message)); }
+  btn.disabled = false; btn.textContent = "매물 전체 삭제";
   drawStock();
 };
 
