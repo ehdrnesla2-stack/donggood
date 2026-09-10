@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>회차 정산 콘솔</title>
+<title>아이온2 성역 정산</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 3 42 13v22L24 45 6 35V13Z' fill='%23161820'/%3E%3Cpath d='M24 3 42 13v22L24 45 6 35V13Z' fill='none' stroke='%23C9962F' stroke-width='2.5'/%3E%3Cpath d='M24 13 33 31H15Z' fill='none' stroke='%23C9962F' stroke-width='2.5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap">
@@ -54,9 +55,23 @@
 
   /* ---------- 로그인 ---------- */
   #gate{min-height:100vh; display:grid; place-items:center; padding:24px 16px}
-  .gatebox{width:100%; max-width:400px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:32px 28px; text-align:center}
-  .gatebox h1{margin:0 0 6px; font-size:19px; font-weight:600; letter-spacing:-.01em}
-  .gatebox p{margin:0 0 22px; color:var(--muted); font-size:13px}
+  .gatebox{
+    position:relative; overflow:hidden;
+    width:100%; max-width:420px; background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:38px 30px 30px; text-align:center;
+  }
+  .gatebox::before{
+    content:""; position:absolute; inset:0 0 auto; height:2px;
+    background:linear-gradient(90deg, transparent, var(--brass), transparent);
+  }
+  .emblem{color:var(--brass); display:block; margin:0 auto 16px}
+  .gatebox h1{margin:0 0 7px; font-size:22px; font-weight:700; letter-spacing:-.02em}
+  .gatebox .eyebrow{
+    font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:500;
+    letter-spacing:.24em; text-transform:uppercase; color:var(--brass); margin:0 0 9px;
+  }
+  .gatebox p{margin:0 0 24px; color:var(--muted); font-size:13px}
+  .gatebox .rule{height:1px; background:var(--line); margin:0 0 24px}
   .gbtn{appearance:none; width:100%; cursor:pointer; font:inherit; font-size:14px; font-weight:500; padding:11px 16px; border-radius:var(--r); border:1px solid var(--line); background:var(--surface-2); color:var(--ink)}
   .gbtn:hover{border-color:var(--brass-line); background:var(--brass-soft); color:var(--brass)}
   .gbtn[disabled]{opacity:.5; cursor:not-allowed}
@@ -68,7 +83,8 @@
   header.bar{position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--line)}
   .bar-in{max-width:1220px; margin:0 auto; padding:11px 16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap}
   .brand{display:flex; align-items:center; gap:9px}
-  .brand h1{margin:0; font-size:15.5px; font-weight:600; letter-spacing:-.01em; white-space:nowrap}
+  .brand .mark{color:var(--brass); flex:none}
+  .brand h1{margin:0; font-size:15.5px; font-weight:700; letter-spacing:-.02em; white-space:nowrap}
   input[type="date"]{font:inherit; font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--ink); background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r); padding:4px 8px}
   .views{display:flex; gap:2px; background:var(--surface-2); border:1px solid var(--line); border-radius:100px; padding:2px}
   .views button{appearance:none; border:0; background:none; color:var(--muted); cursor:pointer; padding:5px 13px; border-radius:100px; font:inherit; font-size:12.5px; font-weight:500; white-space:nowrap}
@@ -242,8 +258,15 @@
 <!-- ===================== 로그인 ===================== -->
 <div id="gate">
   <div class="gatebox">
-    <h1>회차 정산 콘솔</h1>
-    <p>팀원만 들어올 수 있습니다.</p>
+    <svg class="emblem" viewBox="0 0 48 48" width="46" height="46" aria-hidden="true">
+      <path d="M24 3 42 13v22L24 45 6 35V13Z" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".45"/>
+      <path d="M24 12 33 30H15Z" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <circle cx="24" cy="35.5" r="1.9" fill="currentColor"/>
+    </svg>
+    <p class="eyebrow">Sanctum Ledger</p>
+    <h1 id="gateTitle">아이온2 성역 정산</h1>
+    <p id="gateSub">기사단 전용 · 등록된 계정만 들어올 수 있습니다</p>
+    <div class="rule"></div>
     <button type="button" class="gbtn" id="signin">구글 계정으로 로그인</button>
     <div class="gate-msg" id="gateMsg"></div>
   </div>
@@ -254,7 +277,11 @@
 <header class="bar">
   <div class="bar-in">
     <div class="brand">
-      <h1>회차 정산 콘솔</h1>
+      <svg class="mark" viewBox="0 0 48 48" width="19" height="19" aria-hidden="true">
+        <path d="M24 3 42 13v22L24 45 6 35V13Z" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".45"/>
+        <path d="M24 12 33 30H15Z" fill="none" stroke="currentColor" stroke-width="2.6"/>
+      </svg>
+      <h1 id="barTitle">아이온2 성역 정산</h1>
       <input type="date" id="datePick" aria-label="날짜">
     </div>
     <nav class="views" aria-label="화면">
@@ -463,6 +490,10 @@ const FIREBASE_CONFIG = {
    firestore.rules 안의 주소와 반드시 같아야 합니다. */
 const OWNER_EMAIL = "ehdrnesla2@gmail.com";
 
+/* 화면에 보이는 이름. 바꾸려면 여기만 고치면 됩니다. */
+const APP_NAME = "아이온2 성역 정산";
+const APP_SUB  = "기사단 전용 · 등록된 계정만 들어올 수 있습니다";
+
 /* 접속 표시 간격(초). 짧을수록 실시간이지만 Firestore 읽기를 더 씁니다.
    0으로 두면 접속 표시를 끕니다. */
 const PRESENCE_SECONDS = 120;
@@ -549,6 +580,11 @@ const wonS = n => (n < 0 ? "−" : "") + "₩" + Math.abs(Math.round(n)).toLocal
 const esc  = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const $    = id => document.getElementById(id);
 const digits = s => String(s ?? "").replace(/[^\d]/g, "");
+
+document.title = APP_NAME;
+$("gateTitle").textContent = APP_NAME;
+$("gateSub").textContent = APP_SUB;
+$("barTitle").textContent = APP_NAME;
 
 let toastTimer;
 function toast(msg){
