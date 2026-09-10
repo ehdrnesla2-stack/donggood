@@ -209,6 +209,38 @@
   .memo{color:var(--muted); font-size:12.5px}
   .cid{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-2)}
 
+  /* ---------- 기사별 보유 현황 카드 ---------- */
+  .crewgrid{display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr))}
+  .crewcard{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; min-width:0}
+  .crewhead{display:flex; align-items:center; gap:8px; padding:10px 12px; background:var(--surface-2); border-bottom:1px solid var(--line)}
+  .crewhead .nm{font-weight:600; font-size:13.5px; letter-spacing:-.01em}
+  .crewhead .cnt{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); white-space:nowrap}
+  .badge{font-family:"IBM Plex Mono",monospace; font-size:10px; padding:2px 6px; border-radius:3px; white-space:nowrap}
+  .badge.warn{background:var(--out-soft); color:var(--out)}
+  .crewlist{max-height:520px; overflow-y:auto; scrollbar-width:thin}
+  .mitem{padding:8px 10px; border-bottom:1px solid var(--line-2); display:grid; gap:3px}
+  .mitem:last-child{border-bottom:0}
+  .mline{display:flex; align-items:center; gap:5px; min-width:0}
+  .mitem input{border:0; background:none; color:var(--ink); font:inherit; font-size:13px; padding:3px 5px; border-radius:4px; min-width:0}
+  .mitem input::placeholder{color:var(--muted); opacity:.55}
+  .mitem input:hover{background:var(--surface-2)}
+  .mitem input:focus{background:var(--surface-2); outline:1px solid var(--focus); outline-offset:-1px}
+  .f-job{width:58px; font-weight:500; flex:none}
+  .f-spec{width:74px; flex:none; text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  .f-cid{flex:1 1 40%; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-2)}
+  .f-memo{flex:1 1 60%; font-size:12px; color:var(--muted)}
+  .mline.meta{gap:4px; padding-top:1px}
+  .mlab{
+    font-family:"IBM Plex Mono",monospace; font-size:9.5px; font-weight:500;
+    letter-spacing:.1em; color:var(--muted); flex:none; opacity:.8;
+  }
+  .mitem .f-rec, .mitem .f-drv{width:72px; flex:none; font-size:12px; padding:2px 5px}
+  .mitem .f-rec{color:var(--ink-2)}
+  .mitem .f-drv{color:var(--brass); font-weight:500}
+  .mitem .pill{font-size:10.5px; padding:2px 7px; margin-left:auto; flex:none}
+  .mitem .rowdel{font-size:13px; padding:3px 5px; flex:none; line-height:1}
+  .emptycard{grid-column:1/-1; background:var(--surface); border:1px dashed var(--line); border-radius:var(--r); padding:28px; text-align:center; color:var(--muted); font-size:13px}
+
   /* ---------- 멤버 ---------- */
   .mlist{display:grid; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--r); overflow:hidden}
   .mrow{display:grid; grid-template-columns:30px 130px 1fr 92px 40px; align-items:center; background:var(--surface)}
@@ -415,29 +447,12 @@
   <div class="chips" id="stockFilters"></div>
 
   <div class="shead">
-    <h2>매물 목록</h2>
-    <span class="note">칸을 눌러 바로 고칠 수 있습니다</span>
+    <h2>기사별 보유 현황</h2>
+    <span class="note">칸을 눌러 바로 고칠 수 있습니다 · <b>기사</b> 칸을 바꾸면 그 기사 카드로 옮겨갑니다</span>
   </div>
-  <div class="tablebox">
-    <table>
-      <thead>
-        <tr>
-          <th style="width:34px" class="seat">#</th>
-          <th style="width:154px">고객 ID</th>
-          <th style="width:86px">모집자</th>
-          <th style="width:86px">운전자</th>
-          <th style="width:80px">클래스</th>
-          <th style="width:92px; text-align:right">스펙</th>
-          <th style="width:98px">기기등록</th>
-          <th>캐릭터 · 메모</th>
-          <th class="act"></th>
-        </tr>
-      </thead>
-      <tbody id="stockRows"></tbody>
-    </table>
-    <button type="button" class="addrow" id="stockAdd">+ 매물 추가</button>
-  </div>
+  <div class="crewgrid" id="stockGrid"></div>
   <div class="btnbar">
+    <button type="button" class="btn" id="stockAdd">+ 매물 추가</button>
     <button type="button" class="btn" id="stockSeed">구글시트 매물 28건 가져오기</button>
   </div>
   <div class="hint">고객 실명·연락처가 들어 있는 화면입니다. 로그인한 팀원에게만 보입니다.</div>
@@ -1034,14 +1049,109 @@ function saveStock(item){
   }, SAVE_DELAY));
 }
 
+const UNASSIGNED = "미배정";
+
+/* 운전자별로 묶는다. 순서는 팀원 명단 순서를 따르고, 명단에 없는 이름은 뒤로, 미배정은 맨 끝. */
+function stockGroups(){
+  const map = new Map();
+  state.stock.forEach(s => {
+    const k = (s.drv || "").trim() || UNASSIGNED;
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(s);
+  });
+  const order = state.members.map(m => (m.name || "").trim()).filter(Boolean);
+  const keys = [...map.keys()].sort((a, b) => {
+    if (a === UNASSIGNED) return 1;
+    if (b === UNASSIGNED) return -1;
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b, "ko");
+  });
+  return keys.map(k => [k, map.get(k)]);
+}
+
+function stockItem(s){
+  const dev = devOk(s.dev);
+  const el = document.createElement("div");
+  el.className = "mitem";
+  el.innerHTML = `
+    <div class="mline">
+      <input data-f="job" list="jobs" class="f-job" value="${esc(s.job)}" placeholder="클래스" aria-label="클래스" maxlength="8">
+      <input data-f="spec" class="f-spec" value="${esc(s.spec)}" placeholder="스펙" aria-label="스펙" maxlength="16">
+      <button type="button" class="pill ${dev ? "ok" : "no"}" title="누르면 기기등록 상태가 바뀝니다">${dev ? "등록됨" : "미등록"}</button>
+      <button type="button" class="rowdel" title="매물 삭제" aria-label="매물 삭제">×</button>
+    </div>
+    <div class="mline">
+      <input data-f="cid" class="f-cid" value="${esc(s.cid)}" placeholder="고객 ID" aria-label="고객 ID" maxlength="40">
+      <input data-f="memo" class="f-memo" value="${esc(s.memo)}" placeholder="캐릭터 · 메모" aria-label="캐릭터 메모" maxlength="80">
+    </div>
+    <div class="mline meta">
+      <span class="mlab">모집</span>
+      <input data-f="rec" list="crew" class="f-rec" value="${esc(s.rec)}" placeholder="—" aria-label="모집자" maxlength="12">
+      <span class="mlab" style="margin-left:auto">기사</span>
+      <input data-f="drv" list="crew" class="f-drv" value="${esc(s.drv)}" placeholder="미배정" aria-label="기사(운전자)" maxlength="12">
+    </div>`;
+
+  el.querySelectorAll("[data-f]").forEach(inp => {
+    inp.addEventListener("input", () => { s[inp.dataset.f] = inp.value; saveStock(s); drawStockStats(); });
+  });
+
+  // 기사 이름을 다 치고 칸을 벗어나면 그 기사 카드로 옮겨간다
+  el.querySelector('[data-f="drv"]').addEventListener("change", () => drawStock());
+
+  el.querySelector(".pill").addEventListener("click", () => {
+    s.dev = dev ? "" : "ㅇ"; saveStock(s); drawStock();
+  });
+  el.querySelector(".rowdel").addEventListener("click", async () => {
+    if (!confirm(`${s.cid || s.memo || "이 매물"}을(를) 삭제할까요?`)) return;
+    state.stock = state.stock.filter(x => x !== s);
+    drawStock();
+    if (!DEMO) { try { await fb.fs.deleteDoc(fb.fs.doc(fb.db, "stock", s.id)); } catch(e){ toast("삭제 실패: " + (e.code || e.message)); } }
+  });
+  return el;
+}
+
+function crewCard(name, items){
+  const nodev = items.filter(s => !devOk(s.dev)).length;
+  const card = document.createElement("div");
+  card.className = "crewcard";
+
+  const head = document.createElement("div");
+  head.className = "crewhead";
+  head.innerHTML = `<span class="nm">${esc(name)}</span>
+    ${nodev ? `<span class="badge warn">미등록 ${nodev}</span>` : ""}
+    <span class="cnt">${items.length}건</span>`;
+  card.appendChild(head);
+
+  const list = document.createElement("div");
+  list.className = "crewlist";
+  items.forEach(s => list.appendChild(stockItem(s)));
+  card.appendChild(list);
+
+  const add = document.createElement("button");
+  add.type = "button"; add.className = "addrow";
+  add.textContent = "+ 매물 추가";
+  add.onclick = () => addStock(name === UNASSIGNED ? "" : name);
+  card.appendChild(add);
+  return card;
+}
+
+async function addStock(drv){
+  const base = { cid:"", rec:"", drv: drv || "", job:"", spec:"", dev:"", memo:"" };
+  if (DEMO) { state.stock.push({ id:"demo"+Date.now(), ...base }); drawStock(); return; }
+  try { await fb.fs.addDoc(fb.fs.collection(fb.db, "stock"), base); }
+  catch (e) { toast("추가 실패: " + (e.code || e.message)); }
+}
+
 function drawStock(){
-  const drivers = [];
-  state.stock.forEach(s => { if (s.drv && !drivers.includes(s.drv)) drivers.push(s.drv); });
+  const groups = stockGroups();
 
   const f = $("stockFilters");
   f.innerHTML = "";
   [["all", "전체", state.stock.length]]
-    .concat(drivers.map(d => [d, d, state.stock.filter(s => s.drv === d).length]))
+    .concat(groups.map(([k, v]) => [k, k, v.length]))
     .forEach(([key, label, n]) => {
       const b = document.createElement("button");
       b.type = "button"; b.className = "chip";
@@ -1051,39 +1161,14 @@ function drawStock(){
       f.appendChild(b);
     });
 
-  const shown = state.stock.filter(s => state.stockFilter === "all" || s.drv === state.stockFilter);
-  const tb = $("stockRows");
-  tb.innerHTML = "";
+  const grid = $("stockGrid");
+  grid.innerHTML = "";
+  const shown = groups.filter(([k]) => state.stockFilter === "all" || k === state.stockFilter);
   if (!shown.length){
-    tb.innerHTML = `<tr><td colspan="9" style="padding:24px; text-align:center; color:var(--muted)">매물이 없습니다. 아래에서 추가하거나 구글시트 28건을 가져오세요.</td></tr>`;
+    grid.innerHTML = `<div class="emptycard">매물이 없습니다. 아래 <b>+ 매물 추가</b>로 넣거나 구글시트 28건을 가져오세요.</div>`;
+  } else {
+    shown.forEach(([name, items]) => grid.appendChild(crewCard(name, items)));
   }
-  shown.forEach((s, i) => {
-    const dev = devOk(s.dev);
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="seat">${i + 1}</td>
-      <td><input data-f="cid" value="${esc(s.cid)}" placeholder="—" aria-label="${i+1}번 고객 ID" class="cid" maxlength="40"></td>
-      <td><input data-f="rec" list="crew" value="${esc(s.rec)}" placeholder="—" aria-label="${i+1}번 모집자" maxlength="12"></td>
-      <td><input data-f="drv" list="crew" value="${esc(s.drv)}" placeholder="—" aria-label="${i+1}번 운전자" maxlength="12"></td>
-      <td><input data-f="job" list="jobs" value="${esc(s.job)}" placeholder="—" aria-label="${i+1}번 클래스" maxlength="8"></td>
-      <td class="n"><input data-f="spec" value="${esc(s.spec)}" placeholder="—" aria-label="${i+1}번 스펙" maxlength="16"></td>
-      <td class="cellpad"><button type="button" class="pill ${dev ? "ok" : "no"}">${dev ? "등록됨" : "미등록"}</button></td>
-      <td><input data-f="memo" value="${esc(s.memo)}" placeholder="—" aria-label="${i+1}번 메모" class="memo" maxlength="80"></td>
-      <td class="act"><button type="button" class="rowdel" title="매물 삭제" aria-label="${i+1}번 매물 삭제">×</button></td>`;
-    tr.querySelectorAll("[data-f]").forEach(el => {
-      el.addEventListener("input", () => { s[el.dataset.f] = el.value; saveStock(s); drawStockStats(); });
-    });
-    tr.querySelector(".pill").addEventListener("click", () => {
-      s.dev = dev ? "" : "ㅇ"; saveStock(s); drawStock();
-    });
-    tr.querySelector(".rowdel").addEventListener("click", async () => {
-      if (!confirm(`${s.cid || s.memo || "이 매물"}을(를) 삭제할까요?`)) return;
-      state.stock = state.stock.filter(x => x !== s);
-      drawStock();
-      if (!DEMO) { try { await fb.fs.deleteDoc(fb.fs.doc(fb.db, "stock", s.id)); } catch(e){ toast("삭제 실패: " + (e.code || e.message)); } }
-    });
-    tb.appendChild(tr);
-  });
   drawStockStats();
 }
 
@@ -1101,12 +1186,9 @@ function drawStockStats(){
     ? `최고 ${Math.max(...specs).toLocaleString("ko-KR")} · 최저 ${Math.min(...specs).toLocaleString("ko-KR")}` : "—";
 }
 
-$("stockAdd").onclick = async () => {
-  const base = { cid:"", rec:"", drv:(state.stockFilter === "all" ? "" : state.stockFilter), job:"", spec:"", dev:"", memo:"" };
-  if (DEMO) { state.stock.push({ id:"demo"+Date.now(), ...base }); drawStock(); return; }
-  try { await fb.fs.addDoc(fb.fs.collection(fb.db, "stock"), base); }
-  catch (e) { toast("추가 실패: " + (e.code || e.message)); }
-};
+$("stockAdd").onclick = () => addStock(
+  (state.stockFilter === "all" || state.stockFilter === UNASSIGNED) ? "" : state.stockFilter
+);
 
 $("stockSeed").onclick = async () => {
   if (state.stock.length && !confirm(`이미 매물 ${state.stock.length}건이 있습니다. ${STOCK_SEED.length}건을 더 추가할까요?`)) return;
@@ -1271,7 +1353,7 @@ function subscribeGlobal(){
 
   globalSubs.push(onSnapshot(collection(fb.db, "stock"),
     snap => {
-      const editing = document.activeElement && document.activeElement.closest("#stockRows");
+      const editing = document.activeElement && document.activeElement.closest("#stockGrid");
       state.stock = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (state.view === "stock" && !editing) drawStock(); else drawStockStats();
     },
