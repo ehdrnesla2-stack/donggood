@@ -16,6 +16,7 @@
     --brass:#9A7326; --brass-soft:#F1E7D3; --brass-line:#DFCFA8;
     --in:#0F6E5C; --in-soft:#E2F1ED;
     --out:#A8452F; --out-soft:#F8E7E2;
+    color-scheme:light;
     --focus:#2F6FA8;
     --r:6px;
     /* 기사 식별색 — 색약 판별·명도 기준을 통과한 8색. 이름과 항상 같이 표시합니다. */
@@ -30,6 +31,7 @@
       --brass:#D4A950; --brass-soft:#2C2618; --brass-line:#4A3E22;
       --in:#3EAE92; --in-soft:#172C28;
       --out:#E0765C; --out-soft:#2E1D1A;
+      color-scheme:dark;
       --focus:#6BA8DC;
       --crew-0:#8A919E; --crew-1:#3987e5; --crew-2:#d95926; --crew-3:#199e70; --crew-4:#c98500;
       --crew-5:#d55181; --crew-6:#008300; --crew-7:#9085e9; --crew-8:#e66767;
@@ -42,6 +44,7 @@
     --brass:#D4A950; --brass-soft:#2C2618; --brass-line:#4A3E22;
     --in:#3EAE92; --in-soft:#172C28;
     --out:#E0765C; --out-soft:#2E1D1A;
+    color-scheme:dark;
     --focus:#6BA8DC;
     --crew-0:#8A919E; --crew-1:#3987e5; --crew-2:#d95926; --crew-3:#199e70; --crew-4:#c98500;
     --crew-5:#d55181; --crew-6:#008300; --crew-7:#9085e9; --crew-8:#e66767;
@@ -221,7 +224,7 @@
   .crewgrid{display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); align-items:start}
   .crewcard{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; min-width:0}
   .crewhead{
-    display:flex; align-items:center; gap:8px; padding:10px 12px;
+    display:flex; align-items:center; gap:8px; padding:9px 12px;
     background:color-mix(in srgb, var(--crew, transparent) 13%, var(--surface-2));
     border-bottom:1px solid var(--line);
   }
@@ -235,33 +238,53 @@
   .crewhead .cnt{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); white-space:nowrap}
   .badge{font-family:"IBM Plex Mono",monospace; font-size:10px; padding:2px 6px; border-radius:3px; white-space:nowrap}
   .badge.warn{background:var(--out-soft); color:var(--out)}
-  .crewlist{max-height:520px; overflow-y:auto; scrollbar-width:thin}
-  .mitem{padding:8px 10px; border-bottom:1px solid var(--line-2); display:grid; gap:3px}
+  .crewlist{max-height:560px; overflow-y:auto; scrollbar-width:thin}
+  .mitem{padding:5px 8px 6px; border-bottom:1px solid var(--line-2); display:grid; gap:1px}
   .mitem:last-child{border-bottom:0}
-  .mline{display:flex; align-items:center; gap:5px; min-width:0}
-  .mitem input{border:0; background:none; color:var(--ink); font:inherit; font-size:13px; padding:3px 5px; border-radius:4px; min-width:0}
-  .mitem input::placeholder{color:var(--muted); opacity:.55}
-  .mitem input:hover{background:var(--surface-2)}
-  .mitem input:focus{background:var(--surface-2); outline:1px solid var(--focus); outline-offset:-1px}
-  .f-job{flex:0 0 52px; font-weight:500; min-width:0}
-  .f-spec{flex:1 1 62px; min-width:0; text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
-  .f-price{
-    flex:1 1 74px; min-width:0; text-align:right; font-weight:500; color:var(--brass);
+  .mitem:hover{background:color-mix(in srgb, var(--crew, var(--line)) 5%, var(--surface-2))}
+  .mline{display:flex; align-items:center; gap:4px; min-width:0}
+  .mline.sub{flex-wrap:nowrap}
+  .who2{display:flex; align-items:center; gap:2px; flex:none; white-space:nowrap}
+  .mitem input, .mitem select{
+    border:0; background:none; color:var(--ink); font:inherit; font-size:13px;
+    padding:2px 4px; border-radius:4px; min-width:0;
+  }
+  /* 빈 칸은 최대한 조용하게 — 채워진 값만 눈에 들어오도록 */
+  .mitem input::placeholder{color:var(--muted); opacity:.34}
+  .mitem input:placeholder-shown{opacity:.75}
+  .mitem input:hover, .mitem select:hover{background:var(--surface-2)}
+  .mitem input:focus, .mitem select:focus{background:var(--surface); outline:1px solid var(--focus); outline-offset:-1px; opacity:1}
+  .jobsel{appearance:auto; cursor:pointer}
+  .f-job{flex:0 0 68px; font-weight:600; min-width:0}
+  .f-spec{
+    flex:1 1 56px; min-width:0; text-align:right; font-weight:600;
     font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
   }
-  .f-price::placeholder{color:var(--muted); opacity:.5; font-weight:400}
-  .f-cid{flex:1 1 40%; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-2)}
-  .f-memo{flex:1 1 60%; font-size:12px; color:var(--muted)}
-  .mline.meta{gap:4px; padding-top:1px}
-  .mlab{
-    font-family:"IBM Plex Mono",monospace; font-size:9.5px; font-weight:500;
-    letter-spacing:.1em; color:var(--muted); flex:none; opacity:.8;
+  .f-price{
+    flex:1 1 68px; min-width:0; text-align:right; font-weight:600; color:var(--brass);
+    font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
   }
-  .mitem .f-rec, .mitem .f-drv{width:72px; flex:none; font-size:12px; padding:2px 5px}
-  .mitem .f-rec{color:var(--ink-2)}
+  .f-price::placeholder{color:var(--muted); opacity:.3; font-weight:400}
+  .f-cid{flex:1 1 70px; min-width:0; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted)}
+  .f-memo{flex:2 1 90px; min-width:0; font-size:11.5px; color:var(--ink-2)}
+  .mlab{
+    font-family:"IBM Plex Mono",monospace; font-size:9px; font-weight:500;
+    letter-spacing:.1em; color:var(--muted); flex:none; opacity:.55;
+  }
+  .mitem .f-rec, .mitem .f-drv{width:54px; flex:none; font-size:11.5px; padding:1px 4px}
+  .mitem .f-rec{color:var(--muted)}
   .mitem .f-drv{color:var(--brass); font-weight:500}
-  .mitem .pill{font-size:10.5px; padding:2px 7px; margin-left:auto; flex:none}
-  .mitem .rowdel{font-size:13px; padding:3px 5px; flex:none; line-height:1}
+  /* 기기등록 — 처리 안 된 것만 눈에 띄게, 끝난 건 조용한 체크 */
+  .devbtn{
+    appearance:none; cursor:pointer; flex:none; margin-left:auto; line-height:1;
+    font-family:"IBM Plex Mono",monospace; font-size:10px; border-radius:100px;
+    border:0; padding:3px 7px;
+  }
+  .devbtn.ok{background:none; color:var(--in); opacity:.42; padding:3px 4px; font-size:12px}
+  .devbtn.ok:hover{opacity:1; background:var(--in-soft)}
+  .devbtn.no{background:var(--out-soft); color:var(--out); font-weight:500}
+  .mitem .rowdel{font-size:13px; padding:2px 4px; flex:none; line-height:1; opacity:.35}
+  .mitem:hover .rowdel{opacity:1}
   /* ---------- 역할별 3분할 ---------- */
   /* ---------- 버스 손님 ---------- */
   .prow.bus{grid-template-columns:14px 136px 1fr 1fr 1.15fr 108px}
@@ -961,7 +984,7 @@ function drawSeats(round){
       <td class="seat">${i + 1}</td>
       <td class="drv"><span class="cdot sm"></span><input data-f="drv" list="crew" value="${esc(r.drv)}" placeholder="빈 자리" aria-label="${i+1}번 운전자" maxlength="12"></td>
       <td><input data-f="rec" list="crew" value="${esc(r.rec)}" placeholder="—" aria-label="${i+1}번 모집자" maxlength="12"></td>
-      <td><input data-f="job" list="jobs" value="${esc(r.job)}" placeholder="—" aria-label="${i+1}번 직업" maxlength="8"></td>
+      <td><select data-f="job" class="jobsel" aria-label="${i+1}번 직업">${jobOptions(r.job)}</select></td>
       <td><input data-f="nick" value="${esc(r.nick)}" placeholder="닉네임[서버]" aria-label="${i+1}번 닉네임" maxlength="40"></td>
       <td class="n"><input data-f="pw" inputmode="numeric" value="${esc(r.pw)}" placeholder="—" aria-label="${i+1}번 투력" maxlength="5"></td>
       <td class="n"><input data-f="amt" inputmode="numeric" value="${esc(r.amt)}" placeholder="—" aria-label="${i+1}번 모집금액" maxlength="9"></td>
@@ -971,7 +994,7 @@ function drawSeats(round){
       <td class="act"><button type="button" class="rowdel" title="자리 삭제" aria-label="${i+1}번 자리 삭제">×</button></td>`;
 
     tr.querySelectorAll("[data-f]").forEach(el => {
-      el.addEventListener("input", () => {
+      el.addEventListener(el.tagName === "SELECT" ? "change" : "input", () => {
         const f = el.dataset.f;
         let v = el.value;
         if (f === "amt" || f === "pw") {
@@ -1497,6 +1520,14 @@ let dragId = null;
    색은 언제나 이름과 함께 나오므로 색만으로 사람을 구분하게 두지 않는다. */
 const CREW_COLOR_NAMES = ["회색","파랑","주황","아쿠아","노랑","마젠타","초록","보라","빨강"];
 
+/* 클래스 드롭다운 — 목록에 없는 값이 이미 들어 있으면 그 값도 살려서 보여준다 */
+function jobOptions(cur){
+  const v = (cur || "").trim();
+  const list = JOBS.includes(v) || !v ? JOBS : [v, ...JOBS];
+  return `<option value=""${v ? "" : " selected"}>—</option>`
+    + list.map(j => `<option value="${esc(j)}"${j === v ? " selected" : ""}>${esc(j)}</option>`).join("");
+}
+
 const hasColor = m => m && m.color !== undefined && m.color !== null && m.color !== "";
 
 function crewIndex(name){
@@ -1553,25 +1584,25 @@ function stockItem(s){
   el.innerHTML = `
     <div class="mline">
       <span class="grip" title="끌어서 다른 기사에게 넘기기" aria-hidden="true">⠿</span>
-      <input data-f="job" list="jobs" class="f-job" value="${esc(s.job)}" placeholder="클래스" aria-label="클래스" maxlength="8">
-      <input data-f="spec" class="f-spec" value="${esc(s.spec)}" placeholder="스펙" aria-label="스펙" maxlength="16">
+      <select data-f="job" class="f-job jobsel" aria-label="클래스">${jobOptions(s.job)}</select>
+      <input data-f="spec" class="f-spec" value="${esc(s.spec)}" placeholder="투력" aria-label="투력" maxlength="16">
       <input data-f="price" class="f-price" value="${esc(s.price)}" placeholder="금액" aria-label="금액" maxlength="16">
-      <button type="button" class="pill ${dev ? "ok" : "no"}" title="누르면 기기등록 상태가 바뀝니다">${dev ? "등록됨" : "미등록"}</button>
+      <button type="button" class="devbtn ${dev ? "ok" : "no"}" title="${dev ? "기기등록 완료" : "기기등록 안 됨"}" aria-label="기기등록 상태">${dev ? "✓" : "미등록"}</button>
       <button type="button" class="rowdel" title="매물 삭제" aria-label="매물 삭제">×</button>
     </div>
-    <div class="mline">
+    <div class="mline sub">
       <input data-f="cid" class="f-cid" value="${esc(s.cid)}" placeholder="고객 ID" aria-label="고객 ID" maxlength="40">
       <input data-f="memo" class="f-memo" value="${esc(s.memo)}" placeholder="캐릭터 · 메모" aria-label="캐릭터 메모" maxlength="80">
-    </div>
-    <div class="mline meta">
-      <span class="mlab">모집</span>
-      <input data-f="rec" list="crew" class="f-rec" value="${esc(s.rec)}" placeholder="—" aria-label="모집자" maxlength="12">
-      <span class="mlab" style="margin-left:auto">기사</span>
-      <input data-f="drv" list="crew" class="f-drv" value="${esc(s.drv)}" placeholder="미배정" aria-label="기사(운전자)" maxlength="12">
+      <span class="who2">
+        <span class="mlab">모집</span>
+        <input data-f="rec" list="crew" class="f-rec" value="${esc(s.rec)}" placeholder="—" aria-label="모집자" maxlength="12">
+        <span class="mlab">기사</span>
+        <input data-f="drv" list="crew" class="f-drv" value="${esc(s.drv)}" placeholder="미배정" aria-label="기사(운전자)" maxlength="12">
+      </span>
     </div>`;
 
   el.querySelectorAll("[data-f]").forEach(inp => {
-    inp.addEventListener("input", () => {
+    inp.addEventListener(inp.tagName === "SELECT" ? "change" : "input", () => {
       s[inp.dataset.f] = inp.value;
       saveStock(s);
       drawStockStats();
@@ -1599,7 +1630,7 @@ function stockItem(s){
   });
   el.addEventListener("dragend", () => { endDrag(); disarm(); });
 
-  el.querySelector(".pill").addEventListener("click", () => {
+  el.querySelector(".devbtn").addEventListener("click", () => {
     s.dev = dev ? "" : "ㅇ"; saveStock(s); drawStock();
   });
   el.querySelector(".rowdel").addEventListener("click", async () => {
