@@ -92,8 +92,16 @@
   /* ---------- 상단바 ---------- */
   header.bar{position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--line)}
   .bar-in{max-width:1220px; margin:0 auto; padding:11px 16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap}
-  .brand{display:flex; align-items:center; gap:9px}
+  .brand{display:flex; align-items:center; gap:9px; flex-wrap:wrap; min-width:0; max-width:100%}
   .brand .mark{color:var(--brass); flex:none}
+  .datenav{display:flex; align-items:center; gap:3px; flex-wrap:wrap; min-width:0}
+  .datenav input[type="date"]{min-width:0}
+  .datenav button{
+    appearance:none; border:1px solid var(--line); background:var(--surface-2); color:var(--muted);
+    cursor:pointer; font:inherit; font-size:11px; padding:4px 7px; border-radius:var(--r); line-height:1;
+  }
+  .datenav button:hover{border-color:var(--brass-line); background:var(--brass-soft); color:var(--brass)}
+  #dayToday{font-size:11.5px; padding:4px 9px}
   .brand h1{margin:0; font-size:15.5px; font-weight:700; letter-spacing:-.02em; white-space:nowrap}
   input[type="date"]{font:inherit; font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--ink); background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r); padding:4px 8px}
   .views{display:flex; gap:2px; background:var(--surface-2); border:1px solid var(--line); border-radius:100px; padding:2px}
@@ -121,6 +129,7 @@
   .rtab:hover{color:var(--ink)}
   .rtab[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--brass)}
   .rtab .amt{font-size:10.5px; color:var(--muted); margin-left:6px}
+  .rtab .amt.bus{color:var(--brass); margin-left:3px}
   .rtab[aria-selected="true"] .amt{color:var(--brass)}
   .rtab.add{color:var(--brass)}
 
@@ -200,6 +209,10 @@
   .auto{font-family:"IBM Plex Mono",monospace; font-size:10.5px; padding:2px 7px; border-radius:3px; background:var(--in-soft); color:var(--in)}
   .auto.manual{background:var(--out-soft); color:var(--out)}
 
+  .rollup.final{border-width:2px; border-color:var(--brass)}
+  .rollup.final .rollup-head h2{font-size:15px}
+  .prow.final{grid-template-columns:14px 136px 1fr 1fr 1.15fr 108px}
+  @media (max-width:880px){ .prow.final{grid-template-columns:14px minmax(0,1fr) auto auto} }
   .rollup{margin-top:34px; border:1px solid var(--brass-line); border-radius:var(--r); background:var(--surface); overflow:hidden}
   .rollup-head{padding:12px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--brass-soft)}
   .rollup-head h2{margin:0; font-size:13.5px; font-weight:600; color:var(--brass)}
@@ -385,6 +398,11 @@
   footer ul{margin:8px 0 0; padding-left:18px}
   footer li{margin:3px 0}
 
+  @media (max-width:520px){
+    #dayToday{display:none}
+    .brand h1{font-size:14px}
+    input[type="date"]{font-size:11.5px; padding:4px 5px}
+  }
   @media (max-width:880px){
     .strip{grid-template-columns:repeat(2,1fr)}
     .cell:nth-child(3){border-left:0}
@@ -429,7 +447,12 @@
         <path d="M24 12 33 30H15Z" fill="none" stroke="currentColor" stroke-width="2.6"/>
       </svg>
       <h1 id="barTitle">아이온2 성역 정산</h1>
-      <input type="date" id="datePick" aria-label="날짜">
+      <span class="datenav">
+        <button type="button" id="dayPrev" aria-label="하루 전">◀</button>
+        <input type="date" id="datePick" aria-label="날짜">
+        <button type="button" id="dayNext" aria-label="하루 뒤">▶</button>
+        <button type="button" id="dayToday" title="오늘로">오늘</button>
+      </span>
     </div>
     <nav class="views" aria-label="화면">
       <button type="button" id="navLedger" aria-current="true">회차 정산</button>
@@ -568,6 +591,15 @@
     </div>
     <div class="payouts" id="busDayPayouts" style="border:0; border-radius:0"></div>
     <div class="verify" id="busVerify"></div>
+  </div>
+
+  <div class="rollup final">
+    <div class="rollup-head">
+      <h2 id="finalTitle">오늘 최종 이체</h2>
+      <span class="meta" id="finalMeta">—</span>
+    </div>
+    <div class="payouts" id="finalPayouts" style="border:0; border-radius:0"></div>
+    <div class="verify" id="finalVerify"></div>
   </div>
 </section>
 
@@ -732,6 +764,7 @@ const state = {
   activeId: null,
   dayPaid: {},
   busDayPaid: {},
+  finalDayPaid: {},
   stock: [],
   view: "ledger",
   stockFilter: "all",
@@ -918,7 +951,9 @@ function drawRail(){
     const b = document.createElement("button");
     b.className = "rtab"; b.type = "button"; b.role = "tab";
     b.setAttribute("aria-selected", r.id === state.activeId ? "true" : "false");
-    b.innerHTML = `${i + 1}회차 <span class="amt num">${won(calc(r).gross)}</span>`;
+    const bg = calcBus(r).gross;
+    b.innerHTML = `${i + 1}회차 <span class="amt num">${won(calc(r).gross)}</span>`
+      + (bg ? `<span class="amt num bus">+${won(bg)}</span>` : "");
     b.onclick = () => { state.activeId = r.id; renderAll(); };
     rail.appendChild(b);
   });
@@ -1033,16 +1068,21 @@ function syncSeats(round){
   const keys = rowKeys(round);
   const cur = [...tb.querySelectorAll("tr[data-k]")].map(tr => tr.dataset.k);
   if (cur.length !== keys.length || cur.some((k, i) => k !== keys[i])) { drawSeats(round); return; }
+  let rebuild = false;
   keys.forEach(k => {
     const tr = tb.querySelector(`tr[data-k="${k}"]`);
     const r = round.rows[k];
     tr.querySelectorAll("[data-f]").forEach(el => {
       const v = String(r[el.dataset.f] ?? "");
-      if (document.activeElement !== el && el.value !== v) el.value = v;
+      if (document.activeElement !== el && el.value !== v) {
+        el.value = v;
+        if (el.value !== v) rebuild = true;   // 드롭다운에 없는 값이면 통째로 다시 그린다
+      }
     });
     const btn = tr.querySelector(".srcbtn");
     if (btn.dataset.src !== r.src) { btn.dataset.src = r.src; btn.textContent = r.src; }
   });
+  if (rebuild) drawSeats(round);
 }
 
 function refreshCalcCells(round, res){
@@ -1133,9 +1173,20 @@ function renderDerived(){
     refreshCalcCells(round, res);
     $("roundDelete").hidden = false;
 
-    // 탭에 붙은 금액도 타이핑에 맞춰 따라간다
-    const tab = $("rail").querySelector('.rtab[aria-selected="true"] .amt');
-    if (tab) tab.textContent = won(res.gross);
+    // 탭에 붙은 금액도 타이핑에 맞춰 따라간다 (회차 + 버스)
+    const tabBtn = $("rail").querySelector('.rtab[aria-selected="true"]');
+    if (tabBtn) {
+      const amt = tabBtn.querySelector(".amt:not(.bus)");
+      if (amt) amt.textContent = won(res.gross);
+      const bg = calcBus(round).gross;
+      let bt = tabBtn.querySelector(".amt.bus");
+      if (bg && !bt) {
+        bt = document.createElement("span");
+        bt.className = "amt num bus";
+        tabBtn.appendChild(bt);
+      }
+      if (bt) { if (bg) bt.textContent = "+" + won(bg); else bt.remove(); }
+    }
 
     $("s-gross").textContent = won(res.gross);
     $("s-gross-sub").textContent = `사이트 ${res.siteCount}건 · 현금 ${res.cashCount}건`
@@ -1198,12 +1249,17 @@ function renderDerived(){
   $("rollTitle").textContent = `${state.date} 일일 합산`;
   $("rollMeta").textContent = `${state.rounds.length}개 회차 · 참여 ${map.size}명`;
 
+  const manualRound = state.rounds.find(r => { const c = calc(r); return r.divisor && r.divisor !== c.autoDiv; });
+  const manualWhy = manualRound
+    ? ` 분배 인원이 <b>수동 ${manualRound.divisor}명</b>으로 잡혀 있습니다 — 운전자 ${calc(manualRound).autoDiv}명에 맞추면(자동으로 되돌리기) 0이 됩니다.`
+    : " 분배 인원을 확인하세요.";
+
   const v = $("verify");
   const ok = Math.abs(daySum.transfer) < 1;
   v.className = "verify" + (ok ? "" : " bad");
   v.innerHTML = ok
     ? `<span class="dot" style="background:var(--in)"></span>검증 통과 — 이체 분배금 합계 ₩0. 총 실수령액 ${won(daySum.total)} = 개인 분배 ${won(daySum.share)} + 모집 분배 ${won(daySum.recBonus)}`
-    : `<span class="dot" style="background:var(--out)"></span>검증 실패 — 이체 분배금 합계가 ${wonS(daySum.transfer)}입니다. 분배 인원을 확인하세요.`;
+    : `<span class="dot" style="background:var(--out)"></span>검증 실패 — 이체 분배금 합계가 ${wonS(daySum.transfer)}입니다.${manualWhy}`;
 
   // 버스 일일 합산 — 그날 모든 회차의 버스 손님을 합친다
   const bmap = new Map();
@@ -1227,11 +1283,40 @@ function renderDerived(){
   const bv = $("busVerify");
   const bok = Math.abs(busDaySum.transfer) < 1;
   bv.className = "verify" + (bok ? "" : " bad");
+  const noDrv = state.rounds.some(r => calcBus(r).gross > 0 && !calcBus(r).drivers.length);
   bv.innerHTML = !busGross
     ? `<span class="dot off"></span>버스 손님 기록이 없습니다.`
     : bok
       ? `<span class="dot" style="background:var(--in)"></span>검증 통과 — 이체 분배금 합계 ₩0. 받은 금액 ${won(busDaySum.total)} = 1인 분배 합계 ${won(busDaySum.share)}`
-      : `<span class="dot" style="background:var(--out)"></span>검증 실패 — 이체 분배금 합계가 ${wonS(busDaySum.transfer)}입니다.`;
+      : noDrv
+        ? `<span class="dot" style="background:var(--out)"></span>나눌 사람이 없습니다 — 버스 금액이 있는 회차의 <b>운전자 칸</b>을 채워주세요.`
+        : `<span class="dot" style="background:var(--out)"></span>검증 실패 — 이체 분배금 합계가 ${wonS(busDaySum.transfer)}입니다.${manualWhy}`;
+
+  // 오늘 최종 이체 — 회차와 버스를 합쳐 실제로 보낼 금액 하나로
+  const fmap = new Map();
+  const bump = (name, key, v) => {
+    const c = fmap.get(name) || { name, round:0, bus:0, transfer:0 };
+    c[key] += v; c.transfer += v; fmap.set(name, c);
+  };
+  map.forEach(l => bump(l.name, "round", l.transfer));
+  bmap.forEach(l => bump(l.name, "bus", l.transfer));
+  const finalLines = [...fmap.values()].filter(l => Math.abs(l.transfer) > 0.5 || l.round || l.bus);
+  const finalSum = drawFinalPayouts($("finalPayouts"), finalLines, state.finalDayPaid, (name, on) => {
+    state.finalDayPaid[name] = on; saveFinalDay(name, on); renderDerived();
+  });
+  $("finalTitle").textContent = `${state.date} 최종 이체`;
+  const senders = finalLines.filter(l => l.transfer > 0.5).length;
+  $("finalMeta").textContent = finalLines.length
+    ? `보낼 사람 ${senders}명 · 받을 사람 ${finalLines.filter(l => l.transfer < -0.5).length}명`
+    : "—";
+  const fv = $("finalVerify");
+  const fok = Math.abs(finalSum.transfer) < 1;
+  fv.className = "verify" + (fok ? "" : " bad");
+  fv.innerHTML = !finalLines.length
+    ? `<span class="dot off"></span>오늘 기록이 아직 없습니다.`
+    : fok
+      ? `<span class="dot" style="background:var(--in)"></span>회차 ${won(daySum.total)} + 버스 ${won(busDaySum.total)} = 오늘 ${won(daySum.total + busDaySum.total)} — 이 표 기준으로 이체하면 끝입니다.`
+      : `<span class="dot" style="background:var(--out)"></span>합계가 ${wonS(finalSum.transfer)}입니다.${manualWhy}`;
 }
 
 function renderAll(){
@@ -1266,8 +1351,10 @@ const busAmt = r => { const n = Number(r && r.amt) || 0; return n > 0 && isFinit
 function calcBus(round){
   const rows = busList(round);
   const gross = rows.reduce((s, r) => s + busAmt(r), 0);
-  const drivers = calc(round).drivers;              // 회차 기록의 운전자 칸이 그대로 기준
-  const per = drivers.length ? gross / drivers.length : 0;
+  const base = calc(round);
+  const drivers = base.drivers;                    // 회차 기록의 운전자 칸이 그대로 기준
+  const div = base.div;                            // 위 '분배 인원'을 손으로 바꿨으면 그 값을 따른다
+  const per = drivers.length ? gross / div : 0;
 
   const byRec = {};
   rows.forEach(r => {
@@ -1283,7 +1370,7 @@ function calcBus(round){
     return { name, total, share, transfer: total - share, isDriver };
   });
 
-  return { gross, per, drivers, lines,
+  return { gross, per, div, drivers, lines,
     count: rows.filter(r => busAmt(r) > 0).length,
     unpaid: rows.filter(r => busAmt(r) > 0 && !r.ok).length };
 }
@@ -1338,6 +1425,66 @@ function drawBusPayouts(host, lines, paidMap, onToggle){
     <div class="settle"><span class="money" style="color:var(--ink)">${won(sum.transfer)}</span></div><div class="st"></div>`;
   host.appendChild(t);
   return sum;
+}
+
+function drawFinalPayouts(host, lines, paidMap, onToggle){
+  host.innerHTML = "";
+  const head = document.createElement("div");
+  head.className = "prow final head";
+  head.innerHTML = `<div class="stripe"></div><div>기사</div>
+    <div class="v hide-sm" style="text-align:right">회차 이체</div>
+    <div class="v hide-sm" style="text-align:right">버스 이체</div>
+    <div class="v" style="text-align:right">최종 이체</div><div>${onToggle ? "입금" : ""}</div>`;
+  host.appendChild(head);
+
+  if (!lines.length){
+    const e = document.createElement("div");
+    e.className = "prow final";
+    e.innerHTML = `<div class="stripe"></div><div class="nm" style="grid-column:2/-1; color:var(--muted); font-weight:400">오늘 기록이 아직 없습니다.</div>`;
+    host.appendChild(e);
+    return { round:0, bus:0, transfer:0 };
+  }
+
+  lines.forEach(l => {
+    const dir = l.transfer > 0.5 ? "out" : (l.transfer < -0.5 ? "in" : "");
+    const done = !!(paidMap && paidMap[l.name]);
+    const el = document.createElement("div");
+    el.className = "prow final " + dir;
+    el.innerHTML = `
+      <div class="stripe"></div>
+      <div class="nm"><span class="cdot sm" style="background:${crewColor(l.name)}"></span>${esc(l.name)}</div>
+      <div class="v hide-sm${l.round ? "" : " zero"}">${l.round ? wonS(l.round) : "—"}</div>
+      <div class="v hide-sm${l.bus ? "" : " zero"}">${l.bus ? wonS(l.bus) : "—"}</div>
+      <div class="settle">
+        ${dir ? `<span class="tag">${dir === "out" ? "보낼 돈" : "받을 돈"}</span>` : ""}
+        <span class="money">${dir ? wonS(l.transfer) : "₩0"}</span>
+      </div>
+      <div class="st">${onToggle
+        ? `<label class="chk${done ? " done" : ""}"><input type="checkbox" ${done ? "checked" : ""} aria-label="${esc(l.name)} 입금 처리"><span class="t">${done ? "입금 완료" : "미완료"}</span></label>`
+        : ""}</div>`;
+    if (onToggle) el.querySelector("input").addEventListener("change", ev => onToggle(l.name, ev.target.checked));
+    host.appendChild(el);
+  });
+
+  const sum = lines.reduce((a, l) => ({ round:a.round + l.round, bus:a.bus + l.bus, transfer:a.transfer + l.transfer }),
+    { round:0, bus:0, transfer:0 });
+  const t = document.createElement("div");
+  t.className = "prow final total";
+  t.innerHTML = `<div class="stripe"></div><div class="nm">합계</div>
+    <div class="v hide-sm">${won(sum.round)}</div><div class="v hide-sm">${won(sum.bus)}</div>
+    <div class="settle"><span class="money" style="color:var(--ink)">${won(sum.transfer)}</span></div><div class="st"></div>`;
+  host.appendChild(t);
+  return sum;
+}
+
+function saveFinalDay(name, on){
+  if (DEMO) return;
+  clearTimeout(timers.get("finalday"));
+  timers.set("finalday", setTimeout(async () => {
+    try {
+      await fb.fs.setDoc(fb.fs.doc(fb.db, "days", state.date), { finalPaid: { [name]: on } }, { merge: true });
+    } catch (e) { toastOnce("finalday", "입금 체크 저장이 밀렸습니다: " + (e.code || e.message)); }
+  }, SAVE_DELAY));
 }
 
 function drawBusRows(round){
@@ -1903,7 +2050,7 @@ $("memberSave").onclick = async () => {
 };
 
 window.addEventListener("beforeunload", e => {
-  if (state.membersDirty || pending.size > 0) { e.preventDefault(); e.returnValue = ""; }
+  if (state.membersDirty || pending.size > 0 || stockTimers.size > 0) { e.preventDefault(); e.returnValue = ""; }
 });
 
 /* =========================================================================
@@ -1945,6 +2092,17 @@ $("seatAdd").onclick = () => {
   markPending(r.id, p => { p.rows[next] = row; delete p.del[next]; });
   renderAll();
 };
+
+function shiftDate(days){
+  const d = new Date(state.date + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  state.date = d.toISOString().slice(0, 10);
+  state.activeId = null;
+  subscribeDate();
+}
+$("dayPrev").onclick  = () => shiftDate(-1);
+$("dayNext").onclick  = () => shiftDate(1);
+$("dayToday").onclick = () => { state.date = todayStr(); state.activeId = null; subscribeDate(); };
 
 $("datePick").onchange = e => {
   const v = e.target.value;
@@ -2022,6 +2180,7 @@ function subscribeDate(){
       const v = d.data() || {};
       state.dayPaid = v.paid || {};
       state.busDayPaid = v.busPaid || {};
+      state.finalDayPaid = v.finalPaid || {};
       renderDerived();
     },
     () => {}
