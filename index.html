@@ -263,6 +263,20 @@
   .mitem .pill{font-size:10.5px; padding:2px 7px; margin-left:auto; flex:none}
   .mitem .rowdel{font-size:13px; padding:3px 5px; flex:none; line-height:1}
   /* ---------- 역할별 3분할 ---------- */
+  /* ---------- 버스 손님 ---------- */
+  .prow.bus{grid-template-columns:14px 136px 1fr 1fr 1.15fr 108px}
+  @media (max-width:880px){
+    .prow.bus{grid-template-columns:14px minmax(0,1fr) auto auto}
+  }
+  table.bustable{min-width:620px}
+  td.okcell{padding:6px 10px}
+  .okbtn{
+    appearance:none; cursor:pointer; border-radius:100px; font:inherit;
+    font-family:"IBM Plex Mono",monospace; font-size:11px; padding:3px 10px;
+    border:1px solid var(--line); background:var(--surface-2); color:var(--muted);
+  }
+  .okbtn[data-ok="1"]{border-color:transparent; background:var(--in-soft); color:var(--in); font-weight:500}
+
   .rolegrid{display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); align-items:start}
   .rolecard{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; min-width:0}
   .rolecard.empty{border-style:dashed}
@@ -482,10 +496,38 @@
   </div>
 
   <div class="shead">
+    <h2>버스 손님</h2>
+    <span class="stamp" id="busSum"></span>
+    <span class="note">받은 돈을 운전 기사끼리 균등하게 나눕니다 · 모집 10%는 없습니다</span>
+  </div>
+  <div class="tablebox">
+    <table class="bustable">
+      <thead>
+        <tr>
+          <th class="seat">#</th>
+          <th style="width:130px">모집자</th>
+          <th>손님 캐릭명</th>
+          <th style="width:140px; text-align:right">모집금액</th>
+          <th style="width:126px">입금 확인</th>
+          <th class="act"></th>
+        </tr>
+      </thead>
+      <tbody id="busRows"></tbody>
+    </table>
+    <button type="button" class="addrow" id="busAdd">+ 손님 추가</button>
+  </div>
+
+  <div class="shead">
     <h2>기사별 정산</h2>
     <span class="note">이체 분배금 = 정산 총액 − 개인 분배금 − 개인 모집 분배금</span>
   </div>
   <div class="payouts" id="payouts"></div>
+
+  <div class="shead">
+    <h2>버스 손님 정산</h2>
+    <span class="note">이 회차 · 이체 분배금 = 받은 금액 − 1인 분배금</span>
+  </div>
+  <div class="payouts" id="busPayouts"></div>
 
   <div class="rollup">
     <div class="rollup-head">
@@ -494,6 +536,15 @@
     </div>
     <div class="payouts" id="dayPayouts" style="border:0; border-radius:0"></div>
     <div class="verify" id="verify"></div>
+  </div>
+
+  <div class="rollup">
+    <div class="rollup-head">
+      <h2 id="busRollTitle">버스 일일 합산</h2>
+      <span class="meta" id="busRollMeta">—</span>
+    </div>
+    <div class="payouts" id="busDayPayouts" style="border:0; border-radius:0"></div>
+    <div class="verify" id="busVerify"></div>
   </div>
 </section>
 
@@ -657,6 +708,7 @@ const state = {
   rounds: [],
   activeId: null,
   dayPaid: {},
+  busDayPaid: {},
   stock: [],
   view: "ledger",
   stockFilter: "all",
@@ -767,7 +819,7 @@ function calc(round){
    5. 저장 — 바뀐 칸만 보낸다 (여러 명이 같은 회차를 동시에 고쳐도 안전)
    ========================================================================= */
 function markPending(roundId, fn){
-  const p = pending.get(roundId) || { rows:{}, del:{}, paid:{} };
+  const p = pending.get(roundId) || { rows:{}, del:{}, paid:{}, bus:{}, busDel:{}, busPaid:{} };
   fn(p);
   pending.set(roundId, p);
   seq.set(roundId, (seq.get(roundId) || 0) + 1);
@@ -791,12 +843,18 @@ async function flush(roundId){
     const payload = { updatedAt: Date.now(), updatedBy: state.me.name };
     if (Object.keys(p.rows).length) payload.rows = p.rows;
     if (Object.keys(p.paid).length) payload.paid = p.paid;
+    if (Object.keys(p.bus || {}).length) payload.bus = p.bus;
+    if (Object.keys(p.busPaid || {}).length) payload.busPaid = p.busPaid;
     if ("divisor" in p) payload.divisor = p.divisor;
     await setDoc(ref, payload, { merge: true });
 
     const delKeys = Object.keys(p.del);
-    if (delKeys.length) {
-      await updateDoc(ref, Object.fromEntries(delKeys.map(k => [`rows.${k}`, deleteField()])));
+    const busDelKeys = Object.keys(p.busDel || {});
+    if (delKeys.length || busDelKeys.length) {
+      await updateDoc(ref, Object.fromEntries([
+        ...delKeys.map(k => [`rows.${k}`, deleteField()]),
+        ...busDelKeys.map(k => [`bus.${k}`, deleteField()])
+      ]));
     }
     if (seq.get(roundId) === mySeq) pending.delete(roundId);
     setSync("ok", idleText());
@@ -812,10 +870,16 @@ function applyPending(round){
   const rows = { ...(round.rows || {}) };
   for (const [k, fields] of Object.entries(p.rows)) rows[k] = { ...blankRow(), ...(rows[k] || {}), ...fields };
   for (const k of Object.keys(p.del)) delete rows[k];
+
+  const bus = { ...(round.bus || {}) };
+  for (const [k, fields] of Object.entries(p.bus || {})) bus[k] = { ...blankBus(), ...(bus[k] || {}), ...fields };
+  for (const k of Object.keys(p.busDel || {})) delete bus[k];
+
   return {
-    ...round, rows,
+    ...round, rows, bus,
     divisor: ("divisor" in p) ? p.divisor : round.divisor,
-    paid: { ...(round.paid || {}), ...p.paid }
+    paid: { ...(round.paid || {}), ...p.paid },
+    busPaid: { ...(round.busPaid || {}), ...(p.busPaid || {}) }
   };
 }
 
@@ -847,7 +911,7 @@ async function addRound(){
   const seats = prev ? rowList(prev).map(r => blankRow(r.drv)) : state.members.map(m => blankRow(m.name));
   const rows = {};
   seats.forEach((r, i) => { rows[String(i + 1).padStart(2, "0")] = r; });
-  const data = { date: state.date, createdAt: Date.now(), rows, divisor: null, paid: {},
+  const data = { date: state.date, createdAt: Date.now(), rows, bus: {}, divisor: null, paid: {}, busPaid: {},
                  updatedAt: Date.now(), updatedBy: state.me.name };
 
   if (DEMO) {
@@ -1038,7 +1102,9 @@ function renderDerived(){
     $("divN").textContent = "0"; $("divWho").textContent = "—"; $("divReset").hidden = true;
     $("roundStamp").textContent = "";
     $("roundDelete").hidden = true;
+    $("busSum").textContent = "";
     drawPayouts($("payouts"), [], null, null);
+    drawBusPayouts($("busPayouts"), [], null, null);
   } else {
     const res = calc(round);
     refreshCalcCells(round, res);
@@ -1072,6 +1138,25 @@ function renderDerived(){
       markPending(round.id, p => { p.paid[name] = on; });
       renderDerived();
     });
+
+    // 버스 손님
+    const bus = calcBus(round);
+    $("busSum").textContent = bus.gross
+      ? `${bus.count}명 · 총 ${won(bus.gross)} · 1인 ${won(bus.per)}` + (bus.unpaid ? ` · 미입금 ${bus.unpaid}명` : "")
+      : "";
+    busKeys(round).forEach(k => {
+      const tr = $("busRows").querySelector(`tr[data-k="${k}"]`);
+      if (!tr) return;
+      const r = round.bus[k], f = busAmt(r) > 0;
+      tr.classList.toggle("empty", !f);
+      const dot = tr.querySelector(".cdot");
+      if (dot) dot.style.background = (r.rec || "").trim() ? crewColor(r.rec) : "transparent";
+    });
+    drawBusPayouts($("busPayouts"), bus.lines, round.busPaid, (name, on) => {
+      round.busPaid = round.busPaid || {}; round.busPaid[name] = on;
+      markPending(round.id, p => { (p.busPaid = p.busPaid || {})[name] = on; });
+      renderDerived();
+    });
   }
 
   // 일일 합산
@@ -1096,12 +1181,40 @@ function renderDerived(){
   v.innerHTML = ok
     ? `<span class="dot" style="background:var(--in)"></span>검증 통과 — 이체 분배금 합계 ₩0. 총 실수령액 ${won(daySum.total)} = 개인 분배 ${won(daySum.share)} + 모집 분배 ${won(daySum.recBonus)}`
     : `<span class="dot" style="background:var(--out)"></span>검증 실패 — 이체 분배금 합계가 ${wonS(daySum.transfer)}입니다. 분배 인원을 확인하세요.`;
+
+  // 버스 일일 합산 — 그날 모든 회차의 버스 손님을 합친다
+  const bmap = new Map();
+  let busGross = 0, busGuests = 0, busUnpaid = 0;
+  state.rounds.forEach(r => {
+    const b = calcBus(r);
+    busGross += b.gross; busGuests += b.count; busUnpaid += b.unpaid;
+    b.lines.forEach(l => {
+      const c = bmap.get(l.name) || { name:l.name, total:0, share:0, transfer:0, isDriver:false };
+      c.total += l.total; c.share += l.share; c.transfer += l.transfer;
+      c.isDriver = c.isDriver || l.isDriver;
+      bmap.set(l.name, c);
+    });
+  });
+  const busDaySum = drawBusPayouts($("busDayPayouts"), [...bmap.values()], state.busDayPaid, (name, on) => {
+    state.busDayPaid[name] = on; saveBusDay(name, on); renderDerived();
+  });
+  $("busRollTitle").textContent = `${state.date} 버스 합산`;
+  $("busRollMeta").textContent = `손님 ${busGuests}명 · ${won(busGross)}` + (busUnpaid ? ` · 미입금 ${busUnpaid}명` : "");
+
+  const bv = $("busVerify");
+  const bok = Math.abs(busDaySum.transfer) < 1;
+  bv.className = "verify" + (bok ? "" : " bad");
+  bv.innerHTML = !busGross
+    ? `<span class="dot off"></span>버스 손님 기록이 없습니다.`
+    : bok
+      ? `<span class="dot" style="background:var(--in)"></span>검증 통과 — 이체 분배금 합계 ₩0. 받은 금액 ${won(busDaySum.total)} = 1인 분배 합계 ${won(busDaySum.share)}`
+      : `<span class="dot" style="background:var(--out)"></span>검증 실패 — 이체 분배금 합계가 ${wonS(busDaySum.transfer)}입니다.`;
 }
 
 function renderAll(){
   drawRail();
   const round = activeRound();
-  if (round) syncSeats(round);
+  if (round) { syncSeats(round); syncBusRows(round); }
   else $("seats").innerHTML = `<tr><td colspan="11" style="padding:24px; text-align:center; color:var(--muted)">위 <b>+ 첫 회차 시작</b>을 눌러 오늘 회차를 만드세요.</td></tr>`;
   renderDerived();
 }
@@ -1116,6 +1229,182 @@ function saveDay(name, on){
     } catch (e) { toastOnce("day", "입금 체크 저장이 밀렸습니다: " + (e.code || e.message)); }
   }, SAVE_DELAY));
 }
+
+/* =========================================================================
+   6-B. 버스 손님
+   10인 판을 우리 기사들로 깨면서 남는 자리를 팔아 받은 돈.
+   모집 10% 없이, 그 회차 운전 기사끼리 균등하게 나눈다.
+   ========================================================================= */
+const busKeys = round => Object.keys(round.bus || {}).sort();
+const busList = round => busKeys(round).map(k => round.bus[k]);
+function blankBus(){ return { rec: "", nick: "", amt: "", ok: false }; }
+const busAmt = r => { const n = Number(r && r.amt) || 0; return n > 0 && isFinite(n) ? n : 0; };
+
+function calcBus(round){
+  const rows = busList(round);
+  const gross = rows.reduce((s, r) => s + busAmt(r), 0);
+  const drivers = calc(round).drivers;              // 회차 기록의 운전자 칸이 그대로 기준
+  const per = drivers.length ? gross / drivers.length : 0;
+
+  const byRec = {};
+  rows.forEach(r => {
+    const v = busAmt(r), n = (r.rec || "").trim();
+    if (v > 0 && n) byRec[n] = (byRec[n] || 0) + v;
+  });
+
+  const names = drivers.concat(Object.keys(byRec).filter(n => !drivers.includes(n)));
+  const lines = names.map(name => {
+    const isDriver = drivers.includes(name);
+    const total = byRec[name] || 0;
+    const share = isDriver ? per : 0;
+    return { name, total, share, transfer: total - share, isDriver };
+  });
+
+  return { gross, per, drivers, lines,
+    count: rows.filter(r => busAmt(r) > 0).length,
+    unpaid: rows.filter(r => busAmt(r) > 0 && !r.ok).length };
+}
+
+function drawBusPayouts(host, lines, paidMap, onToggle){
+  host.innerHTML = "";
+  const head = document.createElement("div");
+  head.className = "prow bus head";
+  head.innerHTML = `<div class="stripe"></div><div>기사</div>
+    <div class="v hide-sm" style="text-align:right">받은 금액</div>
+    <div class="v hide-sm" style="text-align:right">1인 분배금</div>
+    <div class="v" style="text-align:right">이체 분배금</div><div>${onToggle ? "입금" : ""}</div>`;
+  host.appendChild(head);
+
+  if (!lines.length){
+    const e = document.createElement("div");
+    e.className = "prow bus";
+    e.innerHTML = `<div class="stripe"></div><div class="nm" style="grid-column:2/-1; color:var(--muted); font-weight:400">버스 손님을 넣으면 정산이 생깁니다.</div>`;
+    host.appendChild(e);
+    return { total:0, share:0, transfer:0 };
+  }
+
+  lines.forEach(l => {
+    const dir = l.transfer > 0.5 ? "out" : (l.transfer < -0.5 ? "in" : "");
+    const done = !!(paidMap && paidMap[l.name]);
+    const el = document.createElement("div");
+    el.className = "prow bus " + dir;
+    el.innerHTML = `
+      <div class="stripe"></div>
+      <div class="nm"><span class="cdot sm" style="background:${crewColor(l.name)}"></span>${esc(l.name)}${l.isDriver ? "" : ' <span class="role">수금만</span>'}</div>
+      <div class="v hide-sm${l.total ? "" : " zero"}">${l.total ? won(l.total) : "—"}</div>
+      <div class="v hide-sm${l.share ? "" : " zero"}">${l.share ? won(l.share) : "—"}</div>
+      <div class="settle">
+        ${dir ? `<span class="tag">${dir === "out" ? "보낼 돈" : "받을 돈"}</span>` : ""}
+        <span class="money">${dir ? wonS(l.transfer) : "₩0"}</span>
+      </div>
+      <div class="st">${onToggle
+        ? `<label class="chk${done ? " done" : ""}"><input type="checkbox" ${done ? "checked" : ""} aria-label="${esc(l.name)} 입금 처리"><span class="t">${done ? "입금 완료" : "미완료"}</span></label>`
+        : ""}</div>`;
+    if (onToggle) el.querySelector("input").addEventListener("change", ev => onToggle(l.name, ev.target.checked));
+    host.appendChild(el);
+  });
+
+  const sum = lines.reduce((a, l) => ({
+    total:a.total + l.total, share:a.share + l.share, transfer:a.transfer + l.transfer
+  }), { total:0, share:0, transfer:0 });
+
+  const t = document.createElement("div");
+  t.className = "prow bus total";
+  t.innerHTML = `<div class="stripe"></div><div class="nm">합계</div>
+    <div class="v hide-sm">${won(sum.total)}</div><div class="v hide-sm">${won(sum.share)}</div>
+    <div class="settle"><span class="money" style="color:var(--ink)">${won(sum.transfer)}</span></div><div class="st"></div>`;
+  host.appendChild(t);
+  return sum;
+}
+
+function drawBusRows(round){
+  const tb = $("busRows");
+  tb.innerHTML = "";
+  const keys = busKeys(round);
+  if (!keys.length){
+    tb.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; color:var(--muted)">버스로 태운 손님이 있으면 아래 <b>+ 손님 추가</b>로 넣으세요.</td></tr>`;
+    return;
+  }
+  keys.forEach((k, i) => {
+    const r = round.bus[k];
+    const filled = busAmt(r) > 0;
+    const tr = document.createElement("tr");
+    tr.dataset.k = k;
+    if (!filled) tr.className = "empty";
+    tr.innerHTML = `
+      <td class="seat">${i + 1}</td>
+      <td class="drv"><span class="cdot sm"></span><input data-f="rec" list="crew" value="${esc(r.rec)}" placeholder="모집자" aria-label="${i+1}번 모집자" maxlength="12"></td>
+      <td><input data-f="nick" value="${esc(r.nick)}" placeholder="캐릭명[서버]" aria-label="${i+1}번 손님 캐릭명" maxlength="40"></td>
+      <td class="n"><input data-f="amt" inputmode="numeric" value="${esc(r.amt)}" placeholder="—" aria-label="${i+1}번 모집금액" maxlength="9"></td>
+      <td class="okcell"><button type="button" class="okbtn" data-ok="${r.ok ? 1 : 0}">${r.ok ? "입금 완료" : "미입금"}</button></td>
+      <td class="act"><button type="button" class="rowdel" title="손님 삭제" aria-label="${i+1}번 손님 삭제">×</button></td>`;
+
+    tr.querySelectorAll("[data-f]").forEach(el => {
+      el.addEventListener("input", () => {
+        const f = el.dataset.f;
+        let v = el.value;
+        if (f === "amt") { v = digits(v); if (v !== el.value) el.value = v; }
+        const cur = activeRound(); if (!cur || !cur.bus || !cur.bus[k]) return;
+        cur.bus[k][f] = v;
+        markPending(cur.id, p => { (p.bus = p.bus || {}); (p.bus[k] = p.bus[k] || {})[f] = v; });
+        renderDerived();
+      });
+    });
+    tr.querySelector(".okbtn").addEventListener("click", () => {
+      const cur = activeRound(); if (!cur || !cur.bus || !cur.bus[k]) return;
+      const v = !cur.bus[k].ok;
+      cur.bus[k].ok = v;
+      markPending(cur.id, p => { (p.bus = p.bus || {}); (p.bus[k] = p.bus[k] || {}).ok = v; });
+      renderAll();
+    });
+    tr.querySelector(".rowdel").addEventListener("click", () => {
+      const cur = activeRound(); if (!cur || !cur.bus || !cur.bus[k]) return;
+      if (busAmt(cur.bus[k]) > 0 && !confirm(`${cur.bus[k].nick || "이 손님"}을(를) 삭제할까요? 기록된 ${won(busAmt(cur.bus[k]))}이 사라집니다.`)) return;
+      delete cur.bus[k];
+      markPending(cur.id, p => { (p.busDel = p.busDel || {})[k] = true; if (p.bus) delete p.bus[k]; });
+      renderAll();
+    });
+    tb.appendChild(tr);
+  });
+}
+
+function syncBusRows(round){
+  const tb = $("busRows");
+  const keys = busKeys(round);
+  const cur = [...tb.querySelectorAll("tr[data-k]")].map(tr => tr.dataset.k);
+  if (cur.length !== keys.length || cur.some((k, i) => k !== keys[i])) { drawBusRows(round); return; }
+  keys.forEach(k => {
+    const tr = tb.querySelector(`tr[data-k="${k}"]`), r = round.bus[k];
+    tr.querySelectorAll("[data-f]").forEach(el => {
+      const v = String(r[el.dataset.f] ?? "");
+      if (document.activeElement !== el && el.value !== v) el.value = v;
+    });
+    const btn = tr.querySelector(".okbtn");
+    const want = r.ok ? "1" : "0";
+    if (btn.dataset.ok !== want) { btn.dataset.ok = want; btn.textContent = r.ok ? "입금 완료" : "미입금"; }
+  });
+}
+
+function saveBusDay(name, on){
+  if (DEMO) return;
+  clearTimeout(timers.get("busday"));
+  timers.set("busday", setTimeout(async () => {
+    try {
+      await fb.fs.setDoc(fb.fs.doc(fb.db, "days", state.date), { busPaid: { [name]: on } }, { merge: true });
+    } catch (e) { toastOnce("busday", "입금 체크 저장이 밀렸습니다: " + (e.code || e.message)); }
+  }, SAVE_DELAY));
+}
+
+$("busAdd").onclick = () => {
+  const r = activeRound(); if (!r) { toast("먼저 회차를 만들어주세요."); return; }
+  r.bus = r.bus || {};
+  const keys = busKeys(r);
+  const next = String((keys.length ? Math.max(...keys.map(Number)) : 0) + 1).padStart(2, "0");
+  const row = blankBus();
+  r.bus[next] = row;
+  markPending(r.id, p => { (p.bus = p.bus || {})[next] = row; if (p.busDel) delete p.busDel[next]; });
+  renderAll();
+};
 
 /* =========================================================================
    7. 매물 화면
@@ -1698,7 +1987,12 @@ function subscribeDate(){
   ));
 
   dateSubs.push(onSnapshot(doc(fb.db, "days", state.date),
-    d => { state.dayPaid = (d.data() || {}).paid || {}; renderDerived(); },
+    d => {
+      const v = d.data() || {};
+      state.dayPaid = v.paid || {};
+      state.busDayPaid = v.busPaid || {};
+      renderDerived();
+    },
     () => {}
   ));
 }
