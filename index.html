@@ -124,14 +124,26 @@
 
   /* ---------- 회차 탭 ---------- */
   .rail-shell{border-bottom:1px solid var(--line); background:var(--surface)}
-  .rail{max-width:1220px; margin:0 auto; padding:0 16px; display:flex; gap:2px; overflow-x:auto; scrollbar-width:thin}
-  .rtab{appearance:none; background:none; border:0; border-bottom:2px solid transparent; padding:9px 13px 8px; cursor:pointer; color:var(--muted); white-space:nowrap; font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:500}
-  .rtab:hover{color:var(--ink)}
-  .rtab[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--brass)}
-  .rtab .amt{font-size:10.5px; color:var(--muted); margin-left:6px}
-  .rtab .amt.bus{color:var(--brass); margin-left:3px}
-  .rtab[aria-selected="true"] .amt{color:var(--brass)}
-  .rtab.add{color:var(--brass)}
+  .rail{max-width:1220px; margin:0 auto; padding:8px 16px; display:flex; gap:5px; flex-wrap:wrap; align-items:center}
+  .rtab{
+    appearance:none; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:baseline; gap:5px;
+    border:1px solid var(--line); background:var(--surface-2); color:var(--ink-2);
+    border-radius:var(--r); padding:4px 9px; font-family:"IBM Plex Mono",monospace; font-size:12px;
+  }
+  .rtab:hover{border-color:var(--brass-line); color:var(--ink)}
+  .rtab .no{font-weight:600; font-size:12.5px}
+  .rtab .amt{font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums}
+  .rtab[aria-selected="true"]{background:var(--brass); border-color:var(--brass); color:#fff; font-weight:600}
+  .rtab[aria-selected="true"] .amt{color:#fff; opacity:.85}
+  .rtab .busdot{width:5px; height:5px; border-radius:50%; background:var(--brass); align-self:center; flex:none}
+  .rtab[aria-selected="true"] .busdot{background:#fff}
+  .rtab.add{background:none; border-style:dashed; color:var(--brass); font-family:inherit; font-size:12.5px}
+  .rtab.add:hover{background:var(--brass-soft)}
+  .railinfo{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); white-space:nowrap}
+  .railinfo kbd{
+    font-family:"IBM Plex Mono",monospace; font-size:10px; border:1px solid var(--line);
+    border-bottom-width:2px; border-radius:3px; padding:0 4px; margin:0 1px; color:var(--ink-2); background:var(--surface);
+  }
 
   /* ---------- 요약 ---------- */
   .strip{display:grid; grid-template-columns:repeat(4,1fr); margin-top:20px; background:var(--surface); border:1px solid var(--line); border-radius:var(--r); overflow:hidden}
@@ -155,7 +167,9 @@
   tbody tr:last-child td{border-bottom:0}
   tr.empty td{background:var(--surface-2)}
   .seat{width:34px; text-align:center; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted)}
-  td input{width:100%; border:0; background:none; color:var(--ink); font:inherit; padding:9px 10px; border-radius:0; min-width:0}
+  td input, td select{width:100%; border:0; background:none; color:var(--ink); font:inherit; padding:9px 10px; border-radius:0; min-width:0}
+  td select.jobsel{cursor:pointer; padding-right:2px}
+  td select.jobsel:hover{background:var(--surface-2)}
   td input::placeholder{color:var(--muted); opacity:.6}
   td input:focus-visible, button:focus-visible, .chk:focus-within, .chip:focus-visible, a:focus-visible{outline:2px solid var(--focus); outline-offset:-2px}
   td.n input{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; text-align:right}
@@ -783,6 +797,14 @@ function todayStr(){
 }
 const won  = n => "₩" + Math.round(n).toLocaleString("ko-KR");
 const wonS = n => (n < 0 ? "−" : "") + "₩" + Math.abs(Math.round(n)).toLocaleString("ko-KR");
+/* 탭처럼 좁은 곳에서 쓰는 축약 표기 — 190000 → 19만, 94250 → 9.4만 */
+function shortWon(n){
+  const v = Math.round(n);
+  if (!v) return "—";
+  if (v < 10000) return v.toLocaleString("ko-KR");
+  const m = v / 10000;
+  return (m >= 100 ? Math.round(m) : Math.round(m * 10) / 10) + "만";
+}
 const esc  = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const $    = id => document.getElementById(id);
 const digits = s => String(s ?? "").replace(/[^\d]/g, "");
@@ -951,9 +973,11 @@ function drawRail(){
     const b = document.createElement("button");
     b.className = "rtab"; b.type = "button"; b.role = "tab";
     b.setAttribute("aria-selected", r.id === state.activeId ? "true" : "false");
-    const bg = calcBus(r).gross;
-    b.innerHTML = `${i + 1}회차 <span class="amt num">${won(calc(r).gross)}</span>`
-      + (bg ? `<span class="amt num bus">+${won(bg)}</span>` : "");
+    const rg = calc(r).gross, bg = calcBus(r).gross;
+    b.title = bg ? `회차 ${won(rg)} · 버스 ${won(bg)}` : `회차 ${won(rg)}`;
+    b.innerHTML = `<span class="no">${i + 1}</span>`
+      + `<span class="amt">${shortWon(rg + bg)}</span>`
+      + (bg ? `<span class="busdot"></span>` : "");
     b.onclick = () => { state.activeId = r.id; renderAll(); };
     rail.appendChild(b);
   });
@@ -962,6 +986,14 @@ function drawRail(){
   add.textContent = state.rounds.length ? "+ 회차 추가" : "+ 첫 회차 시작";
   add.onclick = addRound;
   rail.appendChild(add);
+
+  if (state.rounds.length > 1){
+    const info = document.createElement("span");
+    info.className = "railinfo";
+    const i = state.rounds.findIndex(r => r.id === state.activeId);
+    info.innerHTML = `${i + 1} / ${state.rounds.length}회차 <kbd>←</kbd><kbd>→</kbd>`;
+    rail.appendChild(info);
+  }
 }
 
 async function addRound(){
@@ -1173,20 +1205,7 @@ function renderDerived(){
     refreshCalcCells(round, res);
     $("roundDelete").hidden = false;
 
-    // 탭에 붙은 금액도 타이핑에 맞춰 따라간다 (회차 + 버스)
-    const tabBtn = $("rail").querySelector('.rtab[aria-selected="true"]');
-    if (tabBtn) {
-      const amt = tabBtn.querySelector(".amt:not(.bus)");
-      if (amt) amt.textContent = won(res.gross);
-      const bg = calcBus(round).gross;
-      let bt = tabBtn.querySelector(".amt.bus");
-      if (bg && !bt) {
-        bt = document.createElement("span");
-        bt.className = "amt num bus";
-        tabBtn.appendChild(bt);
-      }
-      if (bt) { if (bg) bt.textContent = "+" + won(bg); else bt.remove(); }
-    }
+    drawRail();   // 탭 금액도 타이핑에 맞춰 따라간다 (입력칸은 건드리지 않는다)
 
     $("s-gross").textContent = won(res.gross);
     $("s-gross-sub").textContent = `사이트 ${res.siteCount}건 · 현금 ${res.cashCount}건`
@@ -2103,6 +2122,21 @@ function shiftDate(days){
 $("dayPrev").onclick  = () => shiftDate(-1);
 $("dayNext").onclick  = () => shiftDate(1);
 $("dayToday").onclick = () => { state.date = todayStr(); state.activeId = null; subscribeDate(); };
+
+/* ← → 로 회차 이동 — 글자 입력 중일 때는 방해하지 않는다 */
+document.addEventListener("keydown", e => {
+  if (state.view !== "ledger" || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (state.rounds.length < 2) return;
+  const i = state.rounds.findIndex(r => r.id === state.activeId);
+  const next = e.key === "ArrowLeft" ? Math.max(0, i - 1) : Math.min(state.rounds.length - 1, i + 1);
+  if (next === i) return;
+  e.preventDefault();
+  state.activeId = state.rounds[next].id;
+  renderAll();
+});
 
 $("datePick").onchange = e => {
   const v = e.target.value;
