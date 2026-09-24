@@ -15,7 +15,7 @@
     --line:#DDE0E6; --line-2:#EAECF0;
     --brass:#9A7326; --brass-soft:#F1E7D3; --brass-line:#DFCFA8;
     --in:#0F6E5C; --in-soft:#E2F1ED;
-    --out:#A8452F; --out-soft:#F8E7E2;
+    --out:#A8452F; --out-soft:#F8E7E2; --out-line:#E3B4A8;
     color-scheme:light;
     --focus:#2F6FA8;
     --r:6px;
@@ -30,7 +30,7 @@
       --line:#2A2E36; --line-2:#23272E;
       --brass:#D4A950; --brass-soft:#2C2618; --brass-line:#4A3E22;
       --in:#3EAE92; --in-soft:#172C28;
-      --out:#E0765C; --out-soft:#2E1D1A;
+      --out:#E0765C; --out-soft:#2E1D1A; --out-line:#6B3A2C;
       color-scheme:dark;
       --focus:#6BA8DC;
       --crew-0:#8A919E; --crew-1:#3987e5; --crew-2:#d95926; --crew-3:#199e70; --crew-4:#c98500;
@@ -43,7 +43,7 @@
     --line:#2A2E36; --line-2:#23272E;
     --brass:#D4A950; --brass-soft:#2C2618; --brass-line:#4A3E22;
     --in:#3EAE92; --in-soft:#172C28;
-    --out:#E0765C; --out-soft:#2E1D1A;
+    --out:#E0765C; --out-soft:#2E1D1A; --out-line:#6B3A2C;
     color-scheme:dark;
     --focus:#6BA8DC;
     --crew-0:#8A919E; --crew-1:#3987e5; --crew-2:#d95926; --crew-3:#199e70; --crew-4:#c98500;
@@ -185,6 +185,22 @@
   .addrow{appearance:none; width:100%; border:0; border-top:1px solid var(--line-2); background:var(--surface-2); color:var(--brass); cursor:pointer; font:inherit; font-size:12.5px; padding:9px}
   .addrow:hover{background:var(--brass-soft)}
   input.dupe{background:var(--out-soft); color:var(--out)}
+  /* 아직 안 채운 칸 — 0이라도 쓰면 사라진다 */
+  .needfill{
+    background:var(--out-soft) !important;
+    box-shadow:inset 0 0 0 1px var(--out-line, var(--out));
+    border-radius:3px;
+  }
+  .needfill::placeholder{color:var(--out); opacity:.62}
+  tr.hasblank td:first-child{position:relative}
+  tr.hasblank td:first-child::before{
+    content:""; position:absolute; left:0; top:4px; bottom:4px; width:3px; background:var(--out); border-radius:0 2px 2px 0;
+  }
+  .rtab .warnmark{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:700; color:var(--out);
+    background:var(--out-soft); border-radius:3px; padding:0 4px; align-self:center; line-height:1.4;
+  }
+  .rtab[aria-selected="true"] .warnmark{background:rgba(255,255,255,.22); color:#fff}
 
   /* ---------- 정산 목록 ---------- */
   .payouts{display:grid; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--r); overflow:hidden}
@@ -845,6 +861,26 @@ function ago(ts){
    4. 계산 — 구글시트 수식과 동일
    ========================================================================= */
 function blankRow(name){ return { drv: name || "", rec: "", job: "", nick: "", pw: "", amt: "", src: "사이트" }; }
+
+/* 빈칸 검사 — 손님 관련 칸에 하나라도 적힌 게 있으면 "쓰기 시작한 줄"로 보고,
+   그 줄에서 아직 안 채운 칸을 표시한다. "0"도 채운 것으로 친다.
+   운전자만 앉아 있고 손님이 없는 줄은 정상이므로 건드리지 않는다. */
+const SEAT_CUST = ["rec", "job", "nick", "pw", "amt"];
+const SEAT_ALL  = ["drv", ...SEAT_CUST];
+const filledVal = v => String(v ?? "").trim() !== "";
+
+function missingSeat(r){
+  if (!SEAT_CUST.some(f => filledVal(r[f]))) return [];
+  return SEAT_ALL.filter(f => !filledVal(r[f]));
+}
+function missingBus(r){
+  const F = ["rec", "nick", "amt"];
+  if (!F.some(f => filledVal(r[f]))) return [];
+  return F.filter(f => !filledVal(r[f]));
+}
+const roundMissing = round =>
+  rowList(round).reduce((n, r) => n + missingSeat(r).length, 0)
+  + busList(round).reduce((n, r) => n + missingBus(r).length, 0);
 function rowKeys(round){ return Object.keys(round.rows || {}).sort(); }
 function rowList(round){ return rowKeys(round).map(k => round.rows[k]); }
 
@@ -888,6 +924,7 @@ function calc(round){
   });
 
   return { gross, recCut, finalPot, per, div, autoDiv, drivers, dupes, lines,
+    blanks: rows.reduce((n, r) => n + missingSeat(r).length, 0),
     noAmount: rows.filter(r => (r.rec || r.nick) && !net(r)).length,
     cashCount: rows.filter(r => net(r) > 0 && r.src === "현금").length,
     siteCount: rows.filter(r => net(r) > 0 && r.src === "사이트").length };
@@ -975,9 +1012,12 @@ function drawRail(){
     b.setAttribute("aria-selected", r.id === state.activeId ? "true" : "false");
     const rg = calc(r).gross, bg = calcBus(r).gross;
     b.title = bg ? `회차 ${won(rg)} · 버스 ${won(bg)}` : `회차 ${won(rg)}`;
+    const miss = roundMissing(r);
+    if (miss) b.title += ` · 빈칸 ${miss}칸`;
     b.innerHTML = `<span class="no">${i + 1}</span>`
       + `<span class="amt">${shortWon(rg + bg)}</span>`
-      + (bg ? `<span class="busdot"></span>` : "");
+      + (bg ? `<span class="busdot"></span>` : "")
+      + (miss ? `<span class="warnmark">!</span>` : "");
     b.onclick = () => { state.activeId = r.id; renderAll(); };
     rail.appendChild(b);
   });
@@ -1130,6 +1170,10 @@ function refreshCalcCells(round, res){
     tr.querySelector('[data-f="drv"]').classList.toggle("dupe", res.dupes.has((r.drv || "").trim()));
     const dot = tr.querySelector(".cdot");
     if (dot) dot.style.background = (r.drv || "").trim() ? crewColor(r.drv) : "transparent";
+
+    const miss = missingSeat(r);
+    tr.classList.toggle("hasblank", miss.length > 0);
+    tr.querySelectorAll("[data-f]").forEach(el => el.classList.toggle("needfill", miss.includes(el.dataset.f)));
   });
 }
 
@@ -1208,8 +1252,10 @@ function renderDerived(){
     drawRail();   // 탭 금액도 타이핑에 맞춰 따라간다 (입력칸은 건드리지 않는다)
 
     $("s-gross").textContent = won(res.gross);
-    $("s-gross-sub").textContent = `사이트 ${res.siteCount}건 · 현금 ${res.cashCount}건`
-      + (res.noAmount ? ` · 금액 미입력 ${res.noAmount}건` : "");
+    const gsub = $("s-gross-sub");
+    const blanks = roundMissing(round);
+    gsub.innerHTML = `사이트 ${res.siteCount}건 · 현금 ${res.cashCount}건`
+      + (blanks ? ` · <b style="color:var(--out)">빈칸 ${blanks}칸</b>` : "");
     $("s-rec").textContent = won(res.recCut);
     $("s-net").textContent = won(res.finalPot);
     $("s-per").textContent = won(res.per);
@@ -1244,6 +1290,10 @@ function renderDerived(){
       tr.classList.toggle("empty", !f);
       const dot = tr.querySelector(".cdot");
       if (dot) dot.style.background = (r.rec || "").trim() ? crewColor(r.rec) : "transparent";
+
+      const bmiss = missingBus(r);
+      tr.classList.toggle("hasblank", bmiss.length > 0);
+      tr.querySelectorAll("[data-f]").forEach(el => el.classList.toggle("needfill", bmiss.includes(el.dataset.f)));
     });
     drawBusPayouts($("busPayouts"), bus.lines, round.busPaid, (name, on) => {
       round.busPaid = round.busPaid || {}; round.busPaid[name] = on;
